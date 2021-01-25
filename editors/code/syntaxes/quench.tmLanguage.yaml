@@ -1,0 +1,10 @@
+$schema: https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json
+name: Quench
+scopeName: source.quench
+patterns:
+  - name: comment.number-sign.quench
+    match: '#.*'
+  - name: string.quoted.double.quench
+    match: '".*?"'
+  - name: variable.other.quench
+    match: \w+
