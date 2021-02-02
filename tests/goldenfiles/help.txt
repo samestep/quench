@@ -9,5 +9,5 @@ FLAGS:
     -V, --version    Prints version information
 
 ARGS:
-    <file>      Source file to run as a script
-    <arg>...    Arguments to pass to the script
+    <file>       Source file to run as a script
+    <args>...    Arguments to pass to the script

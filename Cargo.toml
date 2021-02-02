@@ -5,9 +5,12 @@ description = "A programming language."
 edition = "2018"
 
 [dependencies]
+anyhow = "1"
+nom = "6"
+nom_locate = "3.0.0"
 structopt = "0.3"
+thiserror = "1"
 
 [dev-dependencies]
-anyhow = "1"
 assert_cmd = "1"
 goldenfile = "1"

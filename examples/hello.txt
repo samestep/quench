@@ -1,6 +1,4 @@
-Opt {
-    file: Some(
-        "examples/hello.qn",
-    ),
-    arg: [],
-}
+(
+    "\n\nprint(\"Hello, world!\");\n",
+    "#!/usr/bin/env quench",
+)
