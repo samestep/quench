@@ -16,6 +16,22 @@ jobs:
         run: cargo install --path .
       - name: Check output of hello example
         run: examples/hello.qn | git diff --no-index examples/hello.txt -
+  tree-sitter:
+    runs-on: ubuntu-18.04
+    defaults:
+      run:
+        working-directory: tree-sitter-quench
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Node
+        uses: actions/setup-node@v2
+      - name: Install dependencies
+        run: npm install
+      - name: Generate Tree-sitter parser
+        run: npx tree-sitter generate
+      - name: Test parser
+        run: npx tree-sitter test
   vscode:
     runs-on: ubuntu-18.04
     defaults:
