@@ -32,5 +32,7 @@ jobs:
         uses: actions/setup-node@v2
       - name: Install dependencies
         run: npm install
-      - name: Generate JSON TextMate grammar
-        run: npx js-yaml syntaxes/quench.tmLanguage.yaml
+      - name: Compile
+        run: npm run compile
+      - name: Lint
+        run: npm run lint

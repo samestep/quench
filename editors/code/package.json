@@ -9,6 +9,10 @@
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": [
+    "onLanguage:quench"
+  ],
+  "main": "./out/extension",
   "contributes": {
     "languages": [
       {
@@ -23,15 +27,37 @@
         "configuration": "./language-configuration.json"
       }
     ],
-    "grammars": [
-      {
-        "language": "quench",
-        "scopeName": "source.quench",
-        "path": "./syntaxes/quench.tmLanguage.json"
+    "configuration": {
+      "type": "object",
+      "title": "Quench configuration",
+      "properties": {
+        "quench.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
       }
-    ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^7.0.0"
   },
   "devDependencies": {
-    "js-yaml": "^4.0.0"
+    "@types/node": "^14.14.25",
+    "@types/vscode": "^1.53.0",
+    "@typescript-eslint/eslint-plugin": "^4.14.2",
+    "@typescript-eslint/parser": "^4.14.2",
+    "eslint": "^7.19.0",
+    "typescript": "^4.1.3"
   }
 }
