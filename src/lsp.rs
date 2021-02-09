@@ -24,6 +24,46 @@ struct Backend {
     documents: Arc<RwLock<HashMap<Url, String>>>,
 }
 
+// TODO: account for UTF-8 vs UTF-16
+fn node_lsp_range(node: &Node) -> Range {
+    let start = node.start_position();
+    let end = node.end_position();
+    Range {
+        // TODO: figure out an alternative to unwrap here
+        start: Position {
+            line: u32::try_from(start.row).unwrap(),
+            character: u32::try_from(start.column).unwrap(),
+        },
+        end: Position {
+            line: u32::try_from(end.row).unwrap(),
+            character: u32::try_from(end.column).unwrap(),
+        },
+    }
+}
+
+// TODO: test this function
+fn diagnostics(node: &Node) -> Vec<Diagnostic> {
+    if node.is_error() {
+        vec![Diagnostic {
+            range: node_lsp_range(node),
+            severity: Some(DiagnosticSeverity::Error),
+            code: None,
+            code_description: None,
+            source: None,
+            message: "syntax error".to_string(),
+            related_information: None,
+            tags: None,
+            data: None,
+        }]
+    } else {
+        let mut cursor = node.walk();
+        node.children(&mut cursor)
+            .map(|child| diagnostics(&child))
+            .flatten()
+            .collect()
+    }
+}
+
 #[derive(Clone, Copy, EnumIter)]
 enum TokenType {
     Comment,
@@ -55,14 +95,12 @@ fn semantic_tokens(node: &Node) -> Vec<AbsoluteToken> {
         "identifier" => Some(TokenType::Variable),
         _ => None,
     } {
-        let start = node.start_position();
-        let end = node.end_position();
-        if start.row == end.row {
+        let range = node_lsp_range(node);
+        if range.start.line == range.end.line {
             return vec![AbsoluteToken {
-                // TODO: figure out an alternative to unwrap here
-                line: u32::try_from(start.row).unwrap(),
-                start: u32::try_from(start.column).unwrap(),
-                length: u32::try_from(end.column - start.column).unwrap(),
+                line: range.start.line,
+                start: range.start.character,
+                length: range.end.character - range.start.character,
                 token_type,
             }];
         }
@@ -174,19 +212,26 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri;
-        let docs = Arc::clone(&self.documents);
-        let docs = docs.read().unwrap(); // TODO: figure out how to log instead of unwrap here
-        let text = docs.get(&uri).ok_or(Error {
-            code: ErrorCode::ServerError(ServerErrorCode::DocNotInCache as i64),
-            message: format!("URI not in document cache: {}", uri),
-            data: None,
-        })?;
-        let mut parser = parser::parser();
-        // TODO: refactor this to encapsulate the unwrap
-        let tree = parser.parse(text, None).unwrap();
+        let (diags, tokens) = {
+            let docs = Arc::clone(&self.documents);
+            let docs = docs.read().unwrap(); // TODO: figure out how to log instead of unwrap here
+            let text = docs.get(&uri).ok_or(Error {
+                code: ErrorCode::ServerError(ServerErrorCode::DocNotInCache as i64),
+                message: format!("URI not in document cache: {}", uri),
+                data: None,
+            })?;
+            let mut parser = parser::parser();
+            // TODO: refactor this to encapsulate the unwrap
+            let tree = parser.parse(text, None).unwrap();
+            (
+                diagnostics(&tree.root_node()),
+                make_relative(semantic_tokens(&tree.root_node())),
+            )
+        };
+        self.client.publish_diagnostics(uri, diags, None).await;
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
-            data: make_relative(semantic_tokens(&tree.root_node())),
+            data: tokens,
         })))
     }
 }
