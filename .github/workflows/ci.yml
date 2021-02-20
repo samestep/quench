@@ -32,7 +32,5 @@ jobs:
         uses: actions/setup-node@v2
       - name: Install dependencies
         run: npm install
-      - name: Compile
-        run: npm run compile
-      - name: Lint
-        run: npm run lint
+      - name: Run tests
+        run: xvfb-run -a npm test
