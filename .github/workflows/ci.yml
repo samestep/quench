@@ -31,6 +31,8 @@ jobs:
       run:
         working-directory: editors/code
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Download quench-lsp from previous job
         uses: actions/download-artifact@v2
         with:
@@ -43,8 +45,6 @@ jobs:
         run: |
           timeout 1s quench-lsp || code=$?
           [ $code -eq 124 ]
-      - name: Checkout
-        uses: actions/checkout@v2
       - name: Install Node
         uses: actions/setup-node@v2
       - name: Install dependencies
