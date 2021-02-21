@@ -41,10 +41,6 @@ jobs:
         run: |
           chmod +x $GITHUB_WORKSPACE/quench-lsp
           sudo mv $GITHUB_WORKSPACE/quench-lsp /usr/local/bin
-      - name: Smoketest quench-lsp
-        run: |
-          timeout 1s quench-lsp || code=$?
-          [ $code -eq 124 ]
       - name: Install Node
         uses: actions/setup-node@v2
       - name: Install dependencies
