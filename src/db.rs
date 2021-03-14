@@ -2,6 +2,7 @@ use crate::parser;
 use lspower::lsp::{
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, Position, Range, SemanticToken, SemanticTokenType,
+    TextDocumentContentChangeEvent,
 };
 use std::{convert::TryFrom, fmt::Debug, ptr, rc::Rc, thread};
 use strum::IntoEnumIterator;
@@ -196,7 +197,7 @@ pub struct AlreadyOpenError {
     files: im::HashSet<Url>,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
 #[error("document not yet opened")]
 pub struct NotYetOpenedError {
     files: im::HashSet<Url>,
@@ -249,17 +250,36 @@ impl Database {
     }
 }
 
-impl Processable<Result<(), NotYetOpenedError>> for DidChangeTextDocumentParams {
-    fn process(self, db: &mut Database) -> Result<(), NotYetOpenedError> {
-        let uri = self.text_document.uri;
-        // TODO: ensure that this is a full text sync
-        let text = self
-            .content_changes
-            .into_iter()
-            .map(|x| x.text)
-            .collect::<Vec<_>>()
-            .join("");
-        db.edit_document(uri, text)
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
+pub enum EditError {
+    #[error(transparent)]
+    NotYetOpened(#[from] NotYetOpenedError),
+    #[error("incremental sync (when full text was expected) for version {version} of {uri}")]
+    IncrementalSync {
+        // same fields as lsp_types::VersionedTextDocumentIdentifier
+        uri: Url,
+        version: i32,
+    },
+}
+
+impl Processable<Result<(), EditError>> for DidChangeTextDocumentParams {
+    fn process(self, db: &mut Database) -> Result<(), EditError> {
+        let doc = self.text_document;
+        let mut changes = self.content_changes;
+        if let Some(TextDocumentContentChangeEvent {
+            range: None,
+            range_length: None,
+            text,
+        }) = changes.pop()
+        {
+            if changes.is_empty() {
+                return Ok(db.edit_document(doc.uri, text)?);
+            }
+        }
+        Err(EditError::IncrementalSync {
+            uri: doc.uri,
+            version: doc.version,
+        })
     }
 }
 
@@ -267,7 +287,7 @@ impl State {
     pub async fn edit_document(
         &self,
         params: DidChangeTextDocumentParams,
-    ) -> Result<(), OpError<NotYetOpenedError>> {
+    ) -> Result<(), OpError<EditError>> {
         self.process(params).await?.map_err(OpError::Op)
     }
 }
@@ -465,6 +485,7 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lspower::lsp::VersionedTextDocumentIdentifier;
     use pretty_assertions::assert_eq;
     use std::{fs::File, io::Read};
 
@@ -485,6 +506,50 @@ mod tests {
             Position::new(start_line, start_character),
             Position::new(end_line, end_character),
         )
+    }
+
+    #[test]
+    fn test_incremental_sync() {
+        let (mut db, uri) = foo_db(String::from("foo"));
+        let params = DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: 2,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: Some(make_range(0, 0, 0, 3)),
+                range_length: None,
+                text: String::from("bar"),
+            }],
+        };
+        assert_eq!(
+            params.process(&mut db),
+            Err(EditError::IncrementalSync {
+                uri: uri.clone(),
+                version: 2
+            }),
+        );
+        let new_contents: &str = &db.source_text(uri);
+        assert_eq!(new_contents, "foo");
+    }
+
+    #[test]
+    fn test_full_sync() {
+        let (mut db, uri) = foo_db(String::from("foo"));
+        let params = DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: 2,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: String::from("bar"),
+            }],
+        };
+        params.process(&mut db).unwrap();
+        let new_contents: &str = &db.source_text(uri);
+        assert_eq!(new_contents, "bar");
     }
 
     fn make_error(sl: u32, sc: u32, el: u32, ec: u32, message: &str) -> Diagnostic {
