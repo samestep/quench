@@ -3,8 +3,7 @@ use lspower::lsp::{
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, Position, Range, SemanticToken, SemanticTokenType,
 };
-use std::convert::TryFrom;
-use std::{ptr, rc::Rc, thread};
+use std::{convert::TryFrom, fmt::Debug, ptr, rc::Rc, thread};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use tokio::sync::{mpsc, oneshot};
@@ -44,30 +43,30 @@ pub fn token_types() -> Vec<SemanticTokenType> {
     TokenType::iter().map(semantic_token_type).collect()
 }
 
-struct AbsoluteToken {
-    line: u32,
-    start: u32,
-    length: u32,
-    token_type: TokenType,
-}
-
 #[salsa::query_group(Storage)]
 trait QueryGroup: salsa::Database {
     #[salsa::input]
+    fn opened_files(&self) -> im::HashSet<Url>;
+
+    #[salsa::input]
     fn source_text(&self, key: Url) -> Rc<String>;
 
-    fn ast(&self, key: Url) -> Rc<Ast>;
+    fn ast(&self, key: Url) -> Option<Rc<Ast>>;
 
-    fn diagnostics(&self, key: Url) -> Rc<Vec<Diagnostic>>;
+    fn diagnostics(&self, key: Url) -> im::Vector<Diagnostic>;
 
-    fn semantic_tokens(&self, key: Url) -> Rc<Vec<SemanticToken>>;
+    fn semantic_tokens(&self, key: Url) -> im::Vector<SemanticToken>;
 }
 
-fn ast(db: &dyn QueryGroup, key: Url) -> Rc<Ast> {
-    let mut parser = parser::parser();
-    let text: &str = &db.source_text(key);
-    let tree = parser.parse(text, None).unwrap();
-    Rc::new(Ast(tree))
+fn ast(db: &dyn QueryGroup, key: Url) -> Option<Rc<Ast>> {
+    if db.opened_files().contains(&key) {
+        let mut parser = parser::parser();
+        let text: &str = &db.source_text(key);
+        let tree = parser.parse(text, None).unwrap();
+        Some(Rc::new(Ast(tree)))
+    } else {
+        None
+    }
 }
 
 // TODO: account for UTF-8 vs UTF-16
@@ -87,8 +86,198 @@ fn node_lsp_range(node: &Node) -> Range {
     }
 }
 
+#[salsa::database(Storage)]
+#[derive(Default)]
+struct Database {
+    storage: salsa::Storage<Self>,
+}
+
+impl salsa::Database for Database {}
+
+trait Processable<T> {
+    fn process(self, db: &mut Database) -> T;
+}
+
+trait Request {
+    fn handle(&mut self, db: &mut Database);
+}
+
+// https://stackoverflow.com/a/48066387
+impl<T, U> Request for Option<(T, oneshot::Sender<U>)>
+where
+    T: Processable<U>,
+{
+    fn handle(&mut self, mut db: &mut Database) {
+        // this should always match, but even if it doesn't, it just means it's already been handled
+        if let Some((params, tx)) = self.take() {
+            let _ = tx.send(params.process(&mut db));
+        }
+    }
+}
+
+type BoxedRequest = Box<dyn Request + Send>;
+
+pub struct State {
+    tx: mpsc::Sender<BoxedRequest>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AsyncError {
+    #[error("state loop ended prematurely")]
+    Send,
+    #[error("failed to receive result from state loop")]
+    Recv,
+}
+
+impl From<mpsc::error::SendError<BoxedRequest>> for AsyncError {
+    fn from(_: mpsc::error::SendError<BoxedRequest>) -> Self {
+        AsyncError::Send
+    }
+}
+
+impl From<oneshot::error::RecvError> for AsyncError {
+    fn from(_: oneshot::error::RecvError) -> Self {
+        AsyncError::Recv
+    }
+}
+
+impl State {
+    pub fn new() -> Self {
+        let (tx, mut rx) = mpsc::channel::<BoxedRequest>(1);
+        // we do this in a non-async thread because our db isn't thread-safe
+        thread::spawn(move || {
+            let mut db = Database::default();
+            db.set_opened_files(im::HashSet::new());
+            // https://stackoverflow.com/a/52521592
+            while let Some(mut request) = futures::executor::block_on(rx.recv()) {
+                request.handle(&mut db);
+            }
+        });
+        State { tx }
+    }
+
+    // confusing given that the Processable trait has a different method with the same name
+    async fn process<T, U>(&self, params: T) -> Result<U, AsyncError>
+    where
+        T: Processable<U> + Send + 'static,
+        U: Send + 'static,
+    {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(Box::new(Some((params, tx)))).await?;
+        let result = rx.await?;
+        Ok(result)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum OpError<T: 'static + Debug + std::error::Error> {
+    #[error(transparent)]
+    Async(#[from] AsyncError),
+    // TODO: figure out how to make this one transparent too
+    #[error("operation-specific error")]
+    Op(#[source] T),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("document was already opened")]
+pub struct AlreadyOpenError {
+    files: im::HashSet<Url>,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("document not yet opened")]
+pub struct NotYetOpenedError {
+    files: im::HashSet<Url>,
+}
+
+impl Processable<Result<(), AlreadyOpenError>> for DidOpenTextDocumentParams {
+    fn process(self, db: &mut Database) -> Result<(), AlreadyOpenError> {
+        let doc = self.text_document;
+        // we always call set_source_text, even if the file is already opened, because we want to
+        // give the client the benefit of the doubt and assume that we've made a bookkeeping
+        // mistake, rather than risk possibly dropping data
+        db.set_source_text(doc.uri.clone(), Rc::new(doc.text));
+        let mut files = db.opened_files();
+        if let Some(_) = files.insert(doc.uri) {
+            Err(AlreadyOpenError { files })
+        } else {
+            db.set_opened_files(files);
+            Ok(())
+        }
+    }
+}
+
+impl State {
+    pub async fn open_document(
+        &self,
+        params: DidOpenTextDocumentParams,
+    ) -> Result<(), OpError<AlreadyOpenError>> {
+        self.process(params).await?.map_err(OpError::Op)
+    }
+}
+
+impl Processable<Result<(), NotYetOpenedError>> for DidChangeTextDocumentParams {
+    fn process(self, db: &mut Database) -> Result<(), NotYetOpenedError> {
+        let uri = self.text_document.uri;
+        // TODO: ensure that this is a full text sync
+        let text = self
+            .content_changes
+            .into_iter()
+            .map(|x| x.text)
+            .collect::<Vec<_>>()
+            .join("");
+        // we always call set_source_text, even if the file hadn't yet been opened, because we want
+        // to give the client the benefit of the doubt and assume that we've made a bookkeeping
+        // mistake, rather than risk possibly dropping data
+        db.set_source_text(uri.clone(), Rc::new(text));
+        let files = db.opened_files();
+        if !files.contains(&uri) {
+            Err(NotYetOpenedError { files })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl State {
+    pub async fn edit_document(
+        &self,
+        params: DidChangeTextDocumentParams,
+    ) -> Result<(), OpError<NotYetOpenedError>> {
+        self.process(params).await?.map_err(OpError::Op)
+    }
+}
+
+impl Processable<Result<(), NotYetOpenedError>> for DidCloseTextDocumentParams {
+    fn process(self, db: &mut Database) -> Result<(), NotYetOpenedError> {
+        let uri = self.text_document.uri;
+        // Salsa doesn't seem to support removing inputs https://github.com/salsa-rs/salsa/issues/37
+        // so we just free most of the memory (hopefully?) by setting it to the empty string; also,
+        // we always call set_source_text, even if the file hadn't yet been opened, because we want
+        // to give the client the benefit of the doubt and assume that we've just made a bookkeeping
+        // mistake
+        db.set_source_text(uri.clone(), Rc::new(String::from("")));
+        let mut files = db.opened_files();
+        if let None = files.remove(&uri) {
+            Err(NotYetOpenedError { files })
+        } else {
+            db.set_opened_files(files);
+            Ok(())
+        }
+    }
+}
+
+impl State {
+    pub async fn close_document(
+        &self,
+        params: DidCloseTextDocumentParams,
+    ) -> Result<(), OpError<NotYetOpenedError>> {
+        self.process(params).await?.map_err(OpError::Op)
+    }
+}
+
 // TODO: test this function
-fn diagnostics_helper(node: &Node) -> Vec<Diagnostic> {
+fn diagnostics_helper(node: &Node) -> im::Vector<Diagnostic> {
     if let Some(message) = {
         if node.is_error() {
             Some("error")
@@ -98,7 +287,7 @@ fn diagnostics_helper(node: &Node) -> Vec<Diagnostic> {
             None
         }
     } {
-        vec![Diagnostic {
+        im::vector![Diagnostic {
             range: node_lsp_range(node),
             severity: Some(DiagnosticSeverity::Error),
             code: None,
@@ -110,20 +299,48 @@ fn diagnostics_helper(node: &Node) -> Vec<Diagnostic> {
             data: None,
         }]
     } else {
+        let mut diagnostics = im::vector![];
         let mut cursor = node.walk();
-        node.children(&mut cursor)
-            .map(|child| diagnostics_helper(&child))
-            .flatten()
-            .collect()
+        for child in node.children(&mut cursor) {
+            diagnostics.append(diagnostics_helper(&child));
+        }
+        diagnostics
     }
 }
 
-fn diagnostics(db: &dyn QueryGroup, key: Url) -> Rc<Vec<Diagnostic>> {
-    Rc::new(diagnostics_helper(&db.ast(key).0.root_node()))
+fn diagnostics(db: &dyn QueryGroup, key: Url) -> im::Vector<Diagnostic> {
+    match db.ast(key) {
+        None => im::vector![],
+        Some(tree) => diagnostics_helper(&tree.0.root_node()),
+    }
+}
+
+struct DiagnosticsRequest(Url);
+
+impl Processable<im::Vector<Diagnostic>> for DiagnosticsRequest {
+    fn process(self, db: &mut Database) -> im::Vector<Diagnostic> {
+        let DiagnosticsRequest(uri) = self;
+        // TODO: warn if the document wasn't already opened
+        db.diagnostics(uri)
+    }
+}
+
+impl State {
+    pub async fn get_diagnostics(&self, uri: Url) -> Result<im::Vector<Diagnostic>, AsyncError> {
+        self.process(DiagnosticsRequest(uri)).await
+    }
+}
+
+#[derive(Clone)]
+struct AbsoluteToken {
+    line: u32,
+    start: u32,
+    length: u32,
+    token_type: TokenType,
 }
 
 // TODO: test this function
-fn absolute_tokens(node: &Node) -> Vec<AbsoluteToken> {
+fn absolute_tokens(node: &Node) -> im::Vector<AbsoluteToken> {
     if let Some(token_type) = match node.kind() {
         // TODO: make these not stringly typed
         "comment" => Some(TokenType::Comment),
@@ -133,7 +350,7 @@ fn absolute_tokens(node: &Node) -> Vec<AbsoluteToken> {
     } {
         let range = node_lsp_range(node);
         if range.start.line == range.end.line {
-            return vec![AbsoluteToken {
+            return im::vector![AbsoluteToken {
                 line: range.start.line,
                 start: range.start.character,
                 length: range.end.character - range.start.character,
@@ -141,21 +358,22 @@ fn absolute_tokens(node: &Node) -> Vec<AbsoluteToken> {
             }];
         }
     }
+    let mut tokens = im::vector![];
     let mut cursor = node.walk();
-    node.children(&mut cursor)
-        .map(|child| absolute_tokens(&child))
-        .flatten()
-        .collect()
+    for child in node.children(&mut cursor) {
+        tokens.append(absolute_tokens(&child));
+    }
+    tokens
 }
 
 // TODO: test this function
-fn make_relative(tokens: Vec<AbsoluteToken>) -> Vec<SemanticToken> {
-    let mut relative = vec![];
+fn make_relative(tokens: im::Vector<AbsoluteToken>) -> im::Vector<SemanticToken> {
+    let mut relative = im::vector![];
     let mut it = tokens.iter();
     match it.next() {
         None => relative,
         Some(first) => {
-            relative.push(SemanticToken {
+            relative.push_back(SemanticToken {
                 delta_line: first.line,
                 delta_start: first.start,
                 length: first.length,
@@ -165,7 +383,7 @@ fn make_relative(tokens: Vec<AbsoluteToken>) -> Vec<SemanticToken> {
             let mut last_line = first.line;
             let mut last_start = first.start;
             for token in it {
-                relative.push(SemanticToken {
+                relative.push_back(SemanticToken {
                     delta_line: token.line - last_line,
                     delta_start: if token.line == last_line {
                         token.start - last_start
@@ -184,124 +402,28 @@ fn make_relative(tokens: Vec<AbsoluteToken>) -> Vec<SemanticToken> {
     }
 }
 
-fn semantic_tokens(db: &dyn QueryGroup, key: Url) -> Rc<Vec<SemanticToken>> {
-    Rc::new(make_relative(absolute_tokens(&db.ast(key).0.root_node())))
+fn semantic_tokens(db: &dyn QueryGroup, key: Url) -> im::Vector<SemanticToken> {
+    match db.ast(key) {
+        None => im::vector![],
+        Some(tree) => make_relative(absolute_tokens(&tree.0.root_node())),
+    }
 }
 
-#[salsa::database(Storage)]
-#[derive(Default)]
-struct Database {
-    storage: salsa::Storage<Self>,
-}
+struct TokensRequest(Url);
 
-impl salsa::Database for Database {}
-
-#[derive(Debug)]
-enum Request {
-    Open {
-        params: DidOpenTextDocumentParams,
-        tx: oneshot::Sender<()>,
-    },
-    Edit {
-        params: DidChangeTextDocumentParams,
-        tx: oneshot::Sender<()>,
-    },
-    Close {
-        params: DidCloseTextDocumentParams,
-        tx: oneshot::Sender<()>,
-    },
-    Diagnostics {
-        uri: Url,
-        tx: oneshot::Sender<Vec<Diagnostic>>,
-    },
-    Tokens {
-        uri: Url,
-        tx: oneshot::Sender<Vec<SemanticToken>>,
-    },
-}
-
-pub struct State {
-    tx: mpsc::Sender<Request>,
+impl Processable<im::Vector<SemanticToken>> for TokensRequest {
+    fn process(self, db: &mut Database) -> im::Vector<SemanticToken> {
+        let TokensRequest(uri) = self;
+        // TODO: warn if the document wasn't already opened
+        db.semantic_tokens(uri)
+    }
 }
 
 impl State {
-    pub fn new() -> Self {
-        let (tx, mut rx) = mpsc::channel::<Request>(1);
-        // we do this in a non-async thread because our db isn't thread-safe
-        thread::spawn(move || {
-            let mut db = Database::default();
-            // https://stackoverflow.com/a/52521592/5044950
-            while let Some(request) = futures::executor::block_on(rx.recv()) {
-                match request {
-                    Request::Open { params, tx } => {
-                        let doc = params.text_document;
-                        db.set_source_text(doc.uri, Rc::new(doc.text));
-                        // TODO: warn if the document was already opened
-                        let _ = tx.send(());
-                    }
-                    Request::Edit { params, tx } => {
-                        let uri = params.text_document.uri;
-                        let text = params
-                            .content_changes
-                            .into_iter()
-                            .map(|x| x.text)
-                            .collect::<Vec<_>>()
-                            .join("");
-                        db.set_source_text(uri, Rc::new(text));
-                        // TODO: warn if the document wasn't already opened
-                        let _ = tx.send(());
-                    }
-                    Request::Close { params: _, tx } => {
-                        // Salsa doesn't seem to support removing inputs:
-                        // https://github.com/salsa-rs/salsa/issues/37
-                        let _ = tx.send(());
-                    }
-                    Request::Tokens { uri, tx } => {
-                        let tokens = db.semantic_tokens(uri);
-                        let _ = tx.send((*tokens).clone());
-                    }
-                    Request::Diagnostics { uri, tx } => {
-                        let diagnostics = db.diagnostics(uri);
-                        let _ = tx.send((*diagnostics).clone());
-                    }
-                }
-            }
-        });
-        State { tx }
-    }
-
-    pub async fn open_document(&self, params: DidOpenTextDocumentParams) -> anyhow::Result<()> {
-        let (tx, rx) = oneshot::channel();
-        self.tx.send(Request::Open { params, tx }).await?;
-        let () = rx.await?;
-        Ok(())
-    }
-
-    pub async fn edit_document(&self, params: DidChangeTextDocumentParams) -> anyhow::Result<()> {
-        let (tx, rx) = oneshot::channel();
-        self.tx.send(Request::Edit { params, tx }).await?;
-        let () = rx.await?;
-        Ok(())
-    }
-
-    pub async fn close_document(&self, params: DidCloseTextDocumentParams) -> anyhow::Result<()> {
-        let (tx, rx) = oneshot::channel();
-        self.tx.send(Request::Close { params, tx }).await?;
-        let () = rx.await?;
-        Ok(())
-    }
-
-    pub async fn get_diagnostics(&self, uri: Url) -> anyhow::Result<Vec<Diagnostic>> {
-        let (tx, rx) = oneshot::channel();
-        self.tx.send(Request::Diagnostics { uri, tx }).await?;
-        let diagnostics = rx.await?;
-        Ok(diagnostics)
-    }
-
-    pub async fn get_semantic_tokens(&self, uri: Url) -> anyhow::Result<Vec<SemanticToken>> {
-        let (tx, rx) = oneshot::channel();
-        self.tx.send(Request::Tokens { uri, tx }).await?;
-        let tokens = rx.await?;
-        Ok(tokens)
+    pub async fn get_semantic_tokens(
+        &self,
+        uri: Url,
+    ) -> Result<im::Vector<SemanticToken>, AsyncError> {
+        self.process(TokensRequest(uri)).await
     }
 }

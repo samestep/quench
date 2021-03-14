@@ -8,13 +8,30 @@ use std::sync::Arc;
 
 enum ServerErrorCode {
     // https://microsoft.github.io/language-server-protocol/specifications/specification-3-16/#responseMessage
-    DocNotInCache = -31999,
+    DbAsyncError = -31999,
 }
 
 struct Backend {
     #[allow(dead_code)]
     client: Client,
     state: Arc<db::State>,
+}
+
+// TODO: improve the error messages shown to the user
+
+impl Backend {
+    async fn push_diagnostics(&self, uri: Url) {
+        match self.state.get_diagnostics(uri.clone()).await {
+            Err(error) => {
+                self.client.show_message(MessageType::Error, error).await;
+            }
+            Ok(diagnostics) => {
+                self.client
+                    .publish_diagnostics(uri, diagnostics.into_iter().collect(), None)
+                    .await;
+            }
+        }
+    }
 }
 
 #[lspower::async_trait]
@@ -52,27 +69,26 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri.clone();
-        // TODO: figure out how to log instead of unwrap here
-        self.state.open_document(params).await.unwrap();
-        let diagnostics = self.state.get_diagnostics(uri.clone()).await.unwrap();
-        self.client
-            .publish_diagnostics(uri, diagnostics, None)
-            .await;
+        if let Err(error) = self.state.open_document(params).await {
+            // TODO: join this with following await
+            self.client.show_message(MessageType::Error, error).await;
+        }
+        self.push_diagnostics(uri).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri.clone();
-        // TODO: figure out how to log instead of unwrap here
-        self.state.edit_document(params).await.unwrap();
-        let diagnostics = self.state.get_diagnostics(uri.clone()).await.unwrap();
-        self.client
-            .publish_diagnostics(uri, diagnostics, None)
-            .await;
+        if let Err(error) = self.state.edit_document(params).await {
+            // TODO: join this with following await
+            self.client.show_message(MessageType::Error, error).await;
+        }
+        self.push_diagnostics(uri).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        // TODO: figure out how to log instead of unwrap here
-        self.state.close_document(params).await.unwrap();
+        if let Err(error) = self.state.close_document(params).await {
+            self.client.show_message(MessageType::Error, error).await;
+        }
     }
 
     async fn semantic_tokens_full(
@@ -84,14 +100,14 @@ impl LanguageServer for Backend {
             .state
             .get_semantic_tokens(uri.clone())
             .await
-            .map_err(|_| Error {
-                code: ErrorCode::ServerError(ServerErrorCode::DocNotInCache as i64),
-                message: format!("URI not in document cache: {}", uri),
+            .map_err(|error| Error {
+                code: ErrorCode::ServerError(ServerErrorCode::DbAsyncError as i64),
+                message: format!("{}", error),
                 data: None,
             })?;
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
-            data: tokens,
+            data: tokens.into_iter().collect(),
         })))
     }
 }
