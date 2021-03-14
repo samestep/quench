@@ -28,3 +28,4 @@ cc = "1"
 [dev-dependencies]
 assert_cmd = "1"
 goldenfile = "1"
+pretty_assertions = "0.7"

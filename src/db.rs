@@ -87,9 +87,18 @@ fn node_lsp_range(node: &Node) -> Range {
 }
 
 #[salsa::database(Storage)]
-#[derive(Default)]
 struct Database {
     storage: salsa::Storage<Self>,
+}
+
+impl Default for Database {
+    fn default() -> Self {
+        let mut db = Database {
+            storage: salsa::Storage::default(),
+        };
+        db.set_opened_files(im::HashSet::new());
+        db
+    }
 }
 
 impl salsa::Database for Database {}
@@ -147,7 +156,6 @@ impl State {
         // we do this in a non-async thread because our db isn't thread-safe
         thread::spawn(move || {
             let mut db = Database::default();
-            db.set_opened_files(im::HashSet::new());
             // https://stackoverflow.com/a/52521592
             while let Some(mut request) = futures::executor::block_on(rx.recv()) {
                 request.handle(&mut db);
@@ -190,20 +198,26 @@ pub struct NotYetOpenedError {
     files: im::HashSet<Url>,
 }
 
-impl Processable<Result<(), AlreadyOpenError>> for DidOpenTextDocumentParams {
-    fn process(self, db: &mut Database) -> Result<(), AlreadyOpenError> {
-        let doc = self.text_document;
+impl Database {
+    fn open_document(&mut self, uri: Url, text: String) -> Result<(), AlreadyOpenError> {
         // we always call set_source_text, even if the file is already opened, because we want to
         // give the client the benefit of the doubt and assume that we've made a bookkeeping
         // mistake, rather than risk possibly dropping data
-        db.set_source_text(doc.uri.clone(), Rc::new(doc.text));
-        let mut files = db.opened_files();
-        if let Some(_) = files.insert(doc.uri) {
+        self.set_source_text(uri.clone(), Rc::new(text));
+        let mut files = self.opened_files();
+        if let Some(_) = files.insert(uri) {
             Err(AlreadyOpenError { files })
         } else {
-            db.set_opened_files(files);
+            self.set_opened_files(files);
             Ok(())
         }
+    }
+}
+
+impl Processable<Result<(), AlreadyOpenError>> for DidOpenTextDocumentParams {
+    fn process(self, db: &mut Database) -> Result<(), AlreadyOpenError> {
+        let doc = self.text_document;
+        db.open_document(doc.uri, doc.text)
     }
 }
 
@@ -213,6 +227,21 @@ impl State {
         params: DidOpenTextDocumentParams,
     ) -> Result<(), OpError<AlreadyOpenError>> {
         self.process(params).await?.map_err(OpError::Op)
+    }
+}
+
+impl Database {
+    fn edit_document(&mut self, uri: Url, text: String) -> Result<(), NotYetOpenedError> {
+        // we always call set_source_text, even if the file hadn't yet been opened, because we want
+        // to give the client the benefit of the doubt and assume that we've made a bookkeeping
+        // mistake, rather than risk possibly dropping data
+        self.set_source_text(uri.clone(), Rc::new(text));
+        let files = self.opened_files();
+        if !files.contains(&uri) {
+            Err(NotYetOpenedError { files })
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -226,16 +255,7 @@ impl Processable<Result<(), NotYetOpenedError>> for DidChangeTextDocumentParams 
             .map(|x| x.text)
             .collect::<Vec<_>>()
             .join("");
-        // we always call set_source_text, even if the file hadn't yet been opened, because we want
-        // to give the client the benefit of the doubt and assume that we've made a bookkeeping
-        // mistake, rather than risk possibly dropping data
-        db.set_source_text(uri.clone(), Rc::new(text));
-        let files = db.opened_files();
-        if !files.contains(&uri) {
-            Err(NotYetOpenedError { files })
-        } else {
-            Ok(())
-        }
+        db.edit_document(uri, text)
     }
 }
 
@@ -248,22 +268,27 @@ impl State {
     }
 }
 
-impl Processable<Result<(), NotYetOpenedError>> for DidCloseTextDocumentParams {
-    fn process(self, db: &mut Database) -> Result<(), NotYetOpenedError> {
-        let uri = self.text_document.uri;
+impl Database {
+    fn close_document(&mut self, uri: Url) -> Result<(), NotYetOpenedError> {
         // Salsa doesn't seem to support removing inputs https://github.com/salsa-rs/salsa/issues/37
         // so we just free most of the memory (hopefully?) by setting it to the empty string; also,
         // we always call set_source_text, even if the file hadn't yet been opened, because we want
         // to give the client the benefit of the doubt and assume that we've just made a bookkeeping
         // mistake
-        db.set_source_text(uri.clone(), Rc::new(String::from("")));
-        let mut files = db.opened_files();
+        self.set_source_text(uri.clone(), Rc::new(String::from("")));
+        let mut files = self.opened_files();
         if let None = files.remove(&uri) {
             Err(NotYetOpenedError { files })
         } else {
-            db.set_opened_files(files);
+            self.set_opened_files(files);
             Ok(())
         }
+    }
+}
+
+impl Processable<Result<(), NotYetOpenedError>> for DidCloseTextDocumentParams {
+    fn process(self, db: &mut Database) -> Result<(), NotYetOpenedError> {
+        db.close_document(self.text_document.uri)
     }
 }
 
@@ -276,7 +301,12 @@ impl State {
     }
 }
 
-// TODO: test this function
+fn make_diagnostic(range: Range, message: String, severity: DiagnosticSeverity) -> Diagnostic {
+    let mut diag = Diagnostic::new_simple(range, message);
+    diag.severity = Some(severity);
+    diag
+}
+
 fn diagnostics_helper(node: &Node) -> im::Vector<Diagnostic> {
     if let Some(message) = {
         if node.is_error() {
@@ -287,17 +317,11 @@ fn diagnostics_helper(node: &Node) -> im::Vector<Diagnostic> {
             None
         }
     } {
-        im::vector![Diagnostic {
-            range: node_lsp_range(node),
-            severity: Some(DiagnosticSeverity::Error),
-            code: None,
-            code_description: None,
-            source: None,
-            message: format!("syntax {}", message),
-            related_information: None,
-            tags: None,
-            data: None,
-        }]
+        im::vector![make_diagnostic(
+            node_lsp_range(node),
+            format!("syntax {}", message),
+            DiagnosticSeverity::Error,
+        )]
     } else {
         let mut diagnostics = im::vector![];
         let mut cursor = node.walk();
@@ -339,7 +363,6 @@ struct AbsoluteToken {
     token_type: TokenType,
 }
 
-// TODO: test this function
 fn absolute_tokens(node: &Node) -> im::Vector<AbsoluteToken> {
     if let Some(token_type) = match node.kind() {
         // TODO: make these not stringly typed
@@ -366,7 +389,6 @@ fn absolute_tokens(node: &Node) -> im::Vector<AbsoluteToken> {
     tokens
 }
 
-// TODO: test this function
 fn make_relative(tokens: im::Vector<AbsoluteToken>) -> im::Vector<SemanticToken> {
     let mut relative = im::vector![];
     let mut it = tokens.iter();
@@ -425,5 +447,86 @@ impl State {
         uri: Url,
     ) -> Result<im::Vector<SemanticToken>, AsyncError> {
         self.process(TokensRequest(uri)).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use std::{fs::File, io::Read};
+
+    fn foo_db(text: String) -> (Database, Url) {
+        let mut db = Database::default();
+        let uri = Url::parse("file:///tmp/foo.qn").unwrap();
+        db.open_document(uri.clone(), String::from(text)).unwrap();
+        (db, uri)
+    }
+
+    fn make_range(
+        start_line: u32,
+        start_character: u32,
+        end_line: u32,
+        end_character: u32,
+    ) -> Range {
+        Range::new(
+            Position::new(start_line, start_character),
+            Position::new(end_line, end_character),
+        )
+    }
+
+    fn make_error(sl: u32, sc: u32, el: u32, ec: u32, message: &str) -> Diagnostic {
+        make_diagnostic(
+            make_range(sl, sc, el, ec),
+            String::from(message),
+            DiagnosticSeverity::Error,
+        )
+    }
+
+    #[test]
+    fn test_diagnostics_hello_world() {
+        let (db, uri) = foo_db(String::from("print(\"Hello,\"\" world!\")"));
+        let diagnostics = db.diagnostics(uri);
+        assert_eq!(
+            diagnostics,
+            im::vector![
+                make_error(0, 6, 0, 14, "syntax error"),
+                make_error(0, 24, 0, 24, "syntax missing"),
+            ],
+        );
+    }
+
+    fn make_token(
+        delta_line: u32,
+        delta_start: u32,
+        length: u32,
+        token_type: TokenType,
+    ) -> SemanticToken {
+        SemanticToken {
+            delta_line,
+            delta_start,
+            length,
+            token_type: token_type as u32,
+            token_modifiers_bitset: 0,
+        }
+    }
+
+    #[test]
+    fn test_tokens_hello_world() {
+        let (db, uri) = foo_db({
+            let mut file = File::open("examples/hello.qn").unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).unwrap();
+            contents
+        });
+        let tokens = db.semantic_tokens(uri);
+        assert_eq!(
+            tokens,
+            im::vector![
+                make_token(0, 0, 21, TokenType::Comment),
+                make_token(2, 0, 5, TokenType::Variable),
+                make_token(0, 6, 15, TokenType::String),
+            ],
+        );
     }
 }
