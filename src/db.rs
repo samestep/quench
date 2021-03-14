@@ -186,8 +186,7 @@ impl State {
 pub enum OpError<T: 'static + Debug + std::error::Error> {
     #[error(transparent)]
     Async(#[from] AsyncError),
-    // TODO: figure out how to make this one transparent too
-    #[error("operation-specific error")]
+    #[error("{0}")] // I think this is equivalent to #[error(transparent)]
     Op(#[source] T),
 }
 
