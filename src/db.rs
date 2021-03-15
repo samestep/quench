@@ -393,7 +393,6 @@ struct AbsoluteToken {
 
 fn absolute_tokens(node: &Node) -> im::Vector<AbsoluteToken> {
     if let Some(token_type) = match node.kind() {
-        // TODO: make these not stringly typed
         "comment" => Some(TokenType::Comment),
         "string" => Some(TokenType::String),
         "identifier" => Some(TokenType::Variable),
