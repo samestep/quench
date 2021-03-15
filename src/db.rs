@@ -46,6 +46,7 @@ pub fn token_types() -> Vec<SemanticTokenType> {
 
 #[salsa::query_group(Storage)]
 trait QueryGroup: salsa::Database {
+    // we don't track versions because we only allow full text sync
     #[salsa::input]
     fn opened_files(&self) -> im::HashSet<Url>;
 
