@@ -162,7 +162,13 @@ mod state {
 
 use lspower::{
     jsonrpc::{Error, ErrorCode, Result},
-    lsp::*,
+    lsp::{
+        DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+        InitializeParams, InitializeResult, SemanticTokens, SemanticTokensFullOptions,
+        SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
+        SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
+        TextDocumentSyncKind, WorkDoneProgressOptions,
+    },
     Client, LanguageServer, LspService, Server,
 };
 use quench::db;
