@@ -48,8 +48,8 @@ suite('Quench', function () {
       const diagnostics = vscode.languages.getDiagnostics(docUri);
       assert.strictEqual(diagnostics.length, 2);
       const expected = [
-        new vscode.Diagnostic(toRange(2, 6, 2, 14), 'syntax error'),
-        new vscode.Diagnostic(toRange(2, 24, 2, 24), 'syntax missing'),
+        new vscode.Diagnostic(toRange(2, 6, 2, 14), 'syntax (ERROR (string))'),
+        new vscode.Diagnostic(toRange(2, 24, 2, 24), 'syntax (MISSING ";")'),
       ];
       expected.forEach((expected, i) => {
         const actual = diagnostics[i];
