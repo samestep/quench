@@ -19,7 +19,7 @@ jobs:
       - name: Run tests
         run: cargo test
       - name: Install
-        run: cargo install --path .
+        run: cargo install --locked --path .
       # partially covered by tests/cli.rs, but this checks the shebang
       - name: Check output of hello example
         run: examples/hello.qn | git diff --no-index examples/hello.txt -
