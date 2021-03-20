@@ -1,6 +1,5 @@
-Opt {
-    file: Some(
-        "examples/hello.qn",
-    ),
-    arg: [],
-}
+AST:
+
+    (source_file (comment) (call function: (identifier) arguments: (arguments (string))))
+
+No diagnostics.

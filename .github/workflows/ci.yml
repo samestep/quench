@@ -1,7 +1,7 @@
 name: CI
 on: push
 jobs:
-  ci:
+  rust:
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -10,9 +10,41 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: Install Tree-sitter CLI
+        run: |
+          TS_GH=https://github.com/tree-sitter/tree-sitter.git
+          cargo install --rev 0.18.0 --git $TS_GH tree-sitter-cli
       - name: Run tests
         run: cargo test
       - name: Install
         run: cargo install --path .
+      # partially covered by tests/cli.rs, but this checks the shebang
       - name: Check output of hello example
         run: examples/hello.qn | git diff --no-index examples/hello.txt -
+      - uses: actions/upload-artifact@v2
+        with:
+          name: quench-lsp
+          path: '~/.cargo/bin/quench-lsp'
+  vscode:
+    needs: rust
+    runs-on: ubuntu-18.04
+    defaults:
+      run:
+        working-directory: editors/code
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download quench-lsp from previous job
+        uses: actions/download-artifact@v2
+        with:
+          name: quench-lsp
+      - name: Make quench-lsp executable
+        run: |
+          chmod +x $GITHUB_WORKSPACE/quench-lsp
+          sudo mv $GITHUB_WORKSPACE/quench-lsp /usr/local/bin
+      - name: Install Node
+        uses: actions/setup-node@v2
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: xvfb-run -a npm test
