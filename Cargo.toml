@@ -6,7 +6,7 @@ edition = "2018"
 
 [[bin]]
 name = "quench-lsp"
-path = "src/lsp.rs"
+path = "src/bin/quench-lsp.rs"
 
 [dependencies]
 anyhow = "1"
