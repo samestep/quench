@@ -1,10 +1,12 @@
 # VS Code extension
 
-Prerequisites:
+## Prerequisites
 
 - [Node][]
 - [VS Code][]
 - [Quench][]
+
+## Usage
 
 The below instructions assume that your VS Code workspace is (the root of) this
 repo but your shell cwd is this directory (`editors/code` in this repo).
