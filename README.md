@@ -10,7 +10,7 @@ Prerequisites:
 First install:
 
 ```sh
-cargo install --path .
+cargo install --locked --path .
 ```
 
 Then run an example:

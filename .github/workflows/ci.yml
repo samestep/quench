@@ -10,6 +10,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: Get dependencies from cache
+        uses: Swatinem/rust-cache@v1
       - name: Install Tree-sitter CLI
         run: |
           TS_GH=https://github.com/tree-sitter/tree-sitter.git
@@ -17,7 +19,7 @@ jobs:
       - name: Run tests
         run: cargo test
       - name: Install
-        run: cargo install --path .
+        run: cargo install --locked --path .
       # partially covered by tests/cli.rs, but this checks the shebang
       - name: Check output of hello example
         run: examples/hello.qn | git diff --no-index examples/hello.txt -
