@@ -10,6 +10,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - uses: Swatinem/rust-cache@v1
       - name: Install Tree-sitter CLI
         run: |
           TS_GH=https://github.com/tree-sitter/tree-sitter.git
