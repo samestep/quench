@@ -1,4 +1,5 @@
-# Quench [![crates.io][]][crates.io link] [![docs.rs]][docs.rs link]
+# Quench [![crates.io][]][crates.io link] [![docs.rs][]][docs.rs link]
+
 A programming language.
 
 ## Prerequisites
