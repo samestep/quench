@@ -27,8 +27,9 @@ Next, from VS Code, press F5 to open a new window with this extension loaded.
 Open a Quench source file (such as `examples/hello.qn` from this repository) and
 observe the syntax highlighting:
 
-![screnshot of hello.qn in VS Code](hello.png)
+![screnshot of hello.qn in VS Code][hello.png]
 
+[hello.png]: /editors/code/hello.png
 [node]: https://github.com/nvm-sh/nvm#install--update-script
 [quench]: /README.md
 [vs code]: https://code.visualstudio.com/download
