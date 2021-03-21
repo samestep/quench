@@ -28,4 +28,4 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Publish
-        run: npx vsce publish
+        run: npx vsce publish --baseImagesUrl="https://github.com/samestep/quench/raw/${GITHUB_REF#refs/tags/}/editors/code"
