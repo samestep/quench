@@ -26,6 +26,10 @@ jobs:
       - name: Ensure empty Git status
         run: "$GITHUB_WORKSPACE/report_git_status.sh"
   rust:
+    strategy:
+      matrix:
+        rust:
+          - 1.46.0
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -33,7 +37,9 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.44.1
+          toolchain: ${{ matrix.rust }}
+      - name: Set Rust toolchain
+        run: rustup default ${{ matrix.rust }}
       - name: Get dependencies from cache
         uses: Swatinem/rust-cache@v1
       - name: Run tests
