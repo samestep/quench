@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
 jobs:
   tree-sitter:
     runs-on: ubuntu-18.04
@@ -25,7 +26,12 @@ jobs:
         run: npx tree-sitter test
       - name: Ensure empty Git status
         run: "$GITHUB_WORKSPACE/report_git_status.sh"
+
   rust:
+    strategy:
+      matrix:
+        rust:
+          - 1.48.0
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -33,7 +39,9 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
+      - name: Set Rust toolchain
+        run: rustup default ${{ matrix.rust }}
       - name: Get dependencies from cache
         uses: Swatinem/rust-cache@v1
       - name: Run tests
@@ -50,6 +58,7 @@ jobs:
           path: '~/.cargo/bin/quench-lsp'
       - name: Ensure empty Git status
         run: "$GITHUB_WORKSPACE/report_git_status.sh"
+
   vscode:
     needs: rust
     runs-on: ubuntu-18.04

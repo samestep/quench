@@ -1,4 +1,4 @@
-# Quench [![crates.io][]][crates.io link] [![docs.rs][]][docs.rs link]
+# Quench [![crates.io][]][crates.io link] [![docs.rs][]][docs.rs link] [![rustc version][]][rust release]
 
 A programming language.
 
@@ -51,3 +51,5 @@ from me and not my employer (Facebook)._
 [editors]: /editors
 [tree-sitter-quench]: /tree-sitter-quench
 [rust]: https://www.rust-lang.org/tools/install
+[rust release]: https://github.com/rust-lang/rust/blob/1.48.0/RELEASES.md#libraries
+[rustc version]: https://img.shields.io/badge/rustc-1.48+-lightgray.svg
