@@ -1,4 +1,4 @@
-# Quench [![crates.io][]][crates.io link] [![docs.rs][]][docs.rs link] [![rustc version][]][rust release]
+# Quench [![CI][]][ci link] [![crates.io][]][crates.io link] [![docs.rs][]][docs.rs link] [![rustc version][]][rust release]
 
 A programming language.
 
@@ -44,6 +44,8 @@ _I am providing code in the repository to you under an open source license.
 Because this is my personal repository, the license you receive to my code is
 from me and not my employer (Facebook)._
 
+[ci]: https://github.com/quench-lang/quench/actions/workflows/ci.yml/badge.svg
+[ci link]: https://github.com/quench-lang/quench/actions/workflows/ci.yml
 [crates.io]: https://img.shields.io/crates/v/quench
 [crates.io link]: https://crates.io/crates/quench
 [docs.rs]: https://docs.rs/quench/badge.svg
