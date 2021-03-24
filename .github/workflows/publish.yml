@@ -32,7 +32,7 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./target/release/quench
-          asset_path: quench-${{ matrix.platform }}
+          asset_name: quench-${{ matrix.platform }}
           asset_content_type: application/octet-stream
       - name: Upload quench-lsp
         uses: actions/upload-release-asset@v1
@@ -41,7 +41,7 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./target/release/quench-lsp
-          asset_path: quench-lsp-${{ matrix.platform }}
+          asset_name: quench-lsp-${{ matrix.platform }}
           asset_content_type: application/octet-stream
 
   crates-io:
