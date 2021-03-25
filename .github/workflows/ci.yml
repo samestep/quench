@@ -100,10 +100,13 @@ jobs:
         with:
           name: quench-lsp
       - name: Make quench-lsp executable
+        # https://stackoverflow.com/a/53637605
         run: |
+          VERSION=$(node -e "console.log(require('./package.json').version);")
+          FILE="$HOME/.quench/$VERSION/bin"
           chmod +x $GITHUB_WORKSPACE/quench-lsp
-          mkdir -p ~/.quench/bin
-          mv $GITHUB_WORKSPACE/quench-lsp ~/.quench/bin
+          mkdir -p "$FILE"
+          mv $GITHUB_WORKSPACE/quench-lsp "$FILE"
       - name: Run tests
         run: xvfb-run -a npm test
       - name: Ensure empty Git status
