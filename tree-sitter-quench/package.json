@@ -2,6 +2,9 @@
   "name": "tree-sitter-quench",
   "version": "0.1.2",
   "description": "",
+  "dependencies": {
+    "nan": "^2.14.2"
+  },
   "devDependencies": {
     "tree-sitter-cli": "^0.17"
   }
