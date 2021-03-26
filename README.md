@@ -7,7 +7,7 @@ A programming language.
 ### Linux
 
 ```sh
-curl -o quench -L https://github.com/quench-lang/quench/releases/download/latest/quench-linux
+curl -o quench -L https://github.com/quench-lang/quench/releases/latest/download/quench-linux
 chmod +x quench
 sudo mv quench /usr/local/bin
 ```
@@ -15,7 +15,7 @@ sudo mv quench /usr/local/bin
 ### macOS
 
 ```sh
-curl -o quench -L https://github.com/quench-lang/quench/releases/download/latest/quench-macos
+curl -o quench -L https://github.com/quench-lang/quench/releases/latest/download/quench-macos
 chmod +x quench
 sudo mv quench /usr/local/bin
 ```
