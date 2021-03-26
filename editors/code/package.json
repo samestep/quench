@@ -68,6 +68,7 @@
     "test": "node ./out/test/runTest.js"
   },
   "dependencies": {
+    "follow-redirects": "^1.13.3",
     "vscode-languageclient": "^7.0.0"
   },
   "devDependencies": {

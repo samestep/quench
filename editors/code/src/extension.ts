@@ -1,11 +1,11 @@
 import { createWriteStream, promises as fs } from 'fs';
-import * as https from 'https';
 import * as os from 'os';
 import * as path from 'path';
 import * as process from 'process';
 
 import * as vscode from 'vscode';
 
+const { https } = require('follow-redirects');
 import * as lsp from 'vscode-languageclient/node';
 
 let client: lsp.LanguageClient;
@@ -66,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const ext = platform === 'windows' ? '.exe' : '';
       const url = `https://github.com/quench-lang/quench/releases/download/v${version}/quench-lsp-${platform}${ext}`;
       // https://stackoverflow.com/a/11944984
-      https.get(url, response => {
+      https.get(url, (response: any) => {
         const { statusCode } = response;
         if (statusCode === 200) {
           // https://stackoverflow.com/a/39850268
