@@ -10,16 +10,16 @@ import * as lsp from 'vscode-languageclient/node';
 
 let client: lsp.LanguageClient;
 
-function defaultServerPath(version: string): string {
-  return path.join(os.homedir(), '.quench', version, 'bin', 'quench-lsp');
+function defaultServerPath(version: string, ext: string): string {
+  return path.join(os.homedir(), '.quench', version, 'bin', `quench-lsp${ext}`);
 }
 
-function serverPath(version: string): string {
+function serverPath(version: string, ext: string): string {
   const conf = vscode.workspace.getConfiguration('quench').get('server.path');
   if (typeof conf === 'string') {
     return conf;
   } else {
-    return defaultServerPath(version);
+    return defaultServerPath(version, ext);
   }
 }
 
@@ -46,12 +46,14 @@ function start(command: string) {
 export async function activate(context: vscode.ExtensionContext) {
   const manifest = path.join(context.extensionPath, 'package.json');
   const { version } = JSON.parse(await fs.readFile(manifest, 'utf8'));
-  let server = serverPath(version);
+  const platform = translatePlatform(process.platform);
+  const ext = platform === 'windows' ? '.exe' : '';
+  let server = serverPath(version, ext);
   const exists = await fs.stat(server).then(() => true, () => false);
   if (exists) {
     start(server);
   } else {
-    server = defaultServerPath(version);
+    server = defaultServerPath(version, ext);
     const dir = path.dirname(server);
     // mkdir succeeds if dir already exists, since we set recursive to true
     await fs.mkdir(dir, { 'recursive': true });
@@ -62,8 +64,6 @@ export async function activate(context: vscode.ExtensionContext) {
       download,
     );
     if (userResponse === download) {
-      const platform = translatePlatform(process.platform);
-      const ext = platform === 'windows' ? '.exe' : '';
       const url = `https://github.com/quench-lang/quench/releases/download/v${version}/quench-lsp-${platform}${ext}`;
       // https://stackoverflow.com/a/11944984
       https.get(url, (response: any) => {
