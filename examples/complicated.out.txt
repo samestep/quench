@@ -1,0 +1,3 @@
+console.log("foo");
+console.log(console.log("bar"));
+console.log("👻 baz 🙃");

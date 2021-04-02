@@ -1,0 +1,9 @@
+print("foo" # closing parenthesis coming soon...
+);
+
+# whoa nesting
+print(
+  # this is an argument
+  print("bar")
+);
+print("👻 baz 🙃");

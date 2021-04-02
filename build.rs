@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 fn main() {
+    vergen::vergen(vergen::Config::default()).unwrap();
+
     let ts_name = "tree-sitter-quench";
     let dir: PathBuf = [ts_name, "src"].iter().collect();
     println!("cargo:rerun-if-changed={}", dir.display());

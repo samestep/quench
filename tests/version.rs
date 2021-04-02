@@ -16,7 +16,7 @@ fn test_version() {
         .as_str()
         .unwrap()
         .to_string();
-    for dir in ["editors/code", "tree-sitter-quench"].iter() {
+    for dir in ["astring-quench", "editors/code", "tree-sitter-quench"].iter() {
         let path = PathBuf::from(dir).join("package.json");
         assert_eq!(
             version,
