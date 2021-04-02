@@ -1,0 +1,8 @@
+{
+  "name": "astring-quench",
+  "version": "0.3.0",
+  "description": "",
+  "dependencies": {
+    "astring": "^1.7.0"
+  }
+}

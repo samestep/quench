@@ -1,5 +1,8 @@
 use lspower::lsp;
-use quench::db::{self, QueryGroup};
+use quench::{
+    codegen::Codegen,
+    db::{self, QueryGroup},
+};
 use std::{env, path::PathBuf};
 use structopt::StructOpt;
 use url::Url;
@@ -21,13 +24,9 @@ Or on a Unix-like system, you could instead run these two commands:
 
 Either way, you should see this output:
 
-    AST:
+    console.log("Hello, world!");
 
-        (source_file (comment) (call function: (identifier) arguments: (arguments (string))))
-
-    No diagnostics.
-
-As you can see, Quench can parse your program, but can't run it yet. Stay tuned!
+As you can see, Quench compiled your program into JavaScript.
 "#;
 
 #[derive(StructOpt)]
@@ -50,19 +49,19 @@ fn run(file: PathBuf, _args: &[String]) -> anyhow::Result<()> {
     let mut db = db::Database::default();
     db.open_document(uri.clone(), slurp::read_all_to_string(file)?)?;
 
-    let ast = db.ast(uri.clone()).unwrap();
-    println!("AST:");
-    println!();
-    println!("    {}", ast.0.root_node().to_sexp());
-
-    println!();
-
-    let diagnostics = db.diagnostics(uri);
+    let diagnostics = db.diagnostics(uri.clone());
     if diagnostics.is_empty() {
-        println!("No diagnostics.");
+        match db
+            .compile(uri)
+            .and_then(|compiled| Codegen::new().gen(compiled))
+        {
+            Some(code) => {
+                print!("{}", code);
+                Ok(())
+            }
+            None => Err(anyhow::anyhow!("Failed to compile.")),
+        }
     } else {
-        println!("Diagnostics:");
-        println!();
         for lsp::Diagnostic {
             severity,
             range: lsp::Range { start, end },
@@ -76,16 +75,15 @@ fn run(file: PathBuf, _args: &[String]) -> anyhow::Result<()> {
             );
             match severity {
                 Some(severity) => {
-                    println!("    {} {:?}: {}", loc, severity, message);
+                    eprintln!("{} {:?}: {}", loc, severity, message);
                 }
                 None => {
-                    println!("    {} {}", loc, message);
+                    eprintln!("{} {}", loc, message);
                 }
             }
         }
+        Err(anyhow::anyhow!("Failed to parse."))
     }
-
-    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {

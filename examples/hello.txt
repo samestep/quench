@@ -1,5 +1,0 @@
-AST:
-
-    (source_file (comment) (call function: (identifier) arguments: (arguments (string))))
-
-No diagnostics.

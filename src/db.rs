@@ -59,6 +59,8 @@ pub trait QueryGroup: salsa::Database {
     fn diagnostics(&self, key: Url) -> im::Vector<Diagnostic>;
 
     fn semantic_tokens(&self, key: Url) -> im::Vector<SemanticToken>;
+
+    fn compile(&self, key: Url) -> Option<serde_json::Value>;
 }
 
 fn source_index(db: &dyn QueryGroup, key: Url) -> Option<text::Index> {
@@ -374,6 +376,78 @@ impl Processable<im::Vector<SemanticToken>> for TokensRequest {
     }
 }
 
+fn compile_helper(text: &str, node: &Node) -> Option<serde_json::Value> {
+    use serde_json::{json, Value};
+    match node.kind() {
+        "source_file" => {
+            let mut cursor = node.walk();
+            let body: Vec<Value> = node
+                .children(&mut cursor)
+                .filter_map(|child| compile_helper(text, &child))
+                .map(|expr| {
+                    json!({
+                        "type": "ExpressionStatement",
+                        "expression": expr,
+                    })
+                })
+                .collect();
+            Some(json!({
+                "type": "Program",
+                "body": body,
+            }))
+        }
+        "call" => {
+            let func = compile_helper(text, &node.child_by_field_name("function")?)?;
+            let args = compile_helper(text, &node.child_by_field_name("arguments")?)?;
+            Some(json!({
+                "type": "CallExpression",
+                "callee": func,
+                "arguments": args,
+            }))
+        }
+        "arguments" => {
+            let mut cursor = node.walk();
+            Some(Value::Array(
+                node.children(&mut cursor)
+                    .filter_map(|child| compile_helper(text, &child))
+                    .collect(),
+            ))
+        }
+        "identifier" => match node.utf8_text(text.as_bytes()).ok()? {
+            "print" => Some(json!({
+                "type": "MemberExpression",
+                "object": {
+                    "type": "Identifier",
+                    "name": "console",
+                },
+                "property": {
+                    "type": "Identifier",
+                    "name": "log",
+                },
+            })),
+            _ => None,
+        },
+        "string" => {
+            let value = node
+                .utf8_text(text.as_bytes())
+                .ok()?
+                .strip_prefix("\"")?
+                .strip_suffix("\"")?;
+            Some(json!({
+                "type": "Literal",
+                "value": value,
+            }))
+        }
+        _ => None,
+    }
+}
+
+pub fn compile(db: &dyn QueryGroup, key: Url) -> Option<serde_json::Value> {
+    let tree = db.ast(key.clone())?;
+    let source = db.source_text(key); // at this point we already know the key is valid
+    compile_helper(&source, &tree.0.root_node())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -544,6 +618,43 @@ mod tests {
                 make_token(1, 0, 21, TokenType::String),
                 make_token(1, 0, 6, TokenType::String),
             ]
+        );
+    }
+
+    #[test]
+    fn test_compile_hello_world() {
+        let (db, uri) = foo_db(slurp::read_all_to_string("examples/hello.qn").unwrap());
+        let compiled = db.compile(uri);
+        assert_eq!(
+            compiled,
+            Some(serde_json::json!({
+                "type": "Program",
+                "body": [
+                    {
+                        "type": "ExpressionStatement",
+                        "expression": {
+                            "type": "CallExpression",
+                            "callee": {
+                                "type": "MemberExpression",
+                                "object": {
+                                    "type": "Identifier",
+                                    "name": "console",
+                                },
+                                "property": {
+                                    "type": "Identifier",
+                                    "name": "log",
+                                },
+                            },
+                            "arguments": [
+                                {
+                                    "type": "Literal",
+                                    "value": "Hello, world!",
+                                },
+                            ],
+                        },
+                    },
+                ],
+            })),
         );
     }
 }

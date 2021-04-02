@@ -1,6 +1,9 @@
 use assert_cmd::{assert::OutputAssertExt, prelude::CommandCargoExt};
 use goldenfile::Mint;
-use std::{ffi::OsStr, process::Command};
+use std::{
+    ffi::OsStr,
+    process::{Command, Output},
+};
 use std::{fs, io::Write};
 
 #[test]
@@ -22,12 +25,28 @@ fn test_examples() {
         let path = entry.unwrap().path();
         if path.extension() == Some(OsStr::new("qn")) {
             let mut cmd = Command::cargo_bin("quench").unwrap();
-            let assert = cmd.arg("run").arg(&path).assert().success().stderr("");
+            let assert = cmd.arg("run").arg(&path).assert();
+            let Output {
+                status,
+                stdout,
+                stderr,
+            } = assert.get_output();
 
-            let mut file = mint
-                .new_goldenfile(path.with_extension("txt").file_name().unwrap())
+            if stderr.is_empty() {
+                assert!(status.success());
+            } else {
+                assert!(!status.success());
+            }
+
+            let mut out = mint
+                .new_goldenfile(path.with_extension("out.txt").file_name().unwrap())
                 .unwrap();
-            file.write_all(&assert.get_output().stdout).unwrap();
+            out.write_all(stdout).unwrap();
+
+            let mut err = mint
+                .new_goldenfile(path.with_extension("err.txt").file_name().unwrap())
+                .unwrap();
+            err.write_all(stderr).unwrap();
         }
     }
 }
