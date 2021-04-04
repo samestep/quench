@@ -160,12 +160,17 @@ fn test_examples() {
     let goldenfiles = "tests/goldenfiles";
     let filename = "examples.yml";
 
+    // assert that the actual YAML file matches what we generate from running the examples; the
+    // goldenfile paradigm provides a nice testing UX via its REGENERATE_GOLDENFILES env var, but we
+    // need to use a custom write_examples function because yaml-rust doesn't emit literal scalars
+    // https://github.com/chyh1990/yaml-rust/pull/132 https://github.com/chyh1990/yaml-rust/pull/137
     write_examples(
         &mut Mint::new(goldenfiles).new_goldenfile(filename).unwrap(),
         &examples,
     )
     .unwrap();
 
+    // redundant check, to ensure that our write_examples function works correctly
     assert_eq!(
         examples,
         serde_yaml::from_reader::<File, Examples>(
