@@ -85,7 +85,7 @@ fn compile(file: PathBuf) -> anyhow::Result<String> {
     Err(anyhow::anyhow!("Failed to compile."))
 }
 
-const DENO_VERSION: &str = "1.8.3";
+const DENO_VERSION: &str = "1.9.2";
 
 fn run(file: PathBuf, args: Vec<String>) -> anyhow::Result<()> {
     let js = compile(file)?;
@@ -112,6 +112,7 @@ fn run(file: PathBuf, args: Vec<String>) -> anyhow::Result<()> {
         no_color: no_color::is_no_color(),
         get_error_class_fn: None,
         location: None,
+        blob_url_store: deno_runtime::deno_file::BlobUrlStore::default(),
     };
     // https://github.com/denoland/deno/blob/v1.8.3/cli/main.rs#L482
     let main_module = deno_core::resolve_path("$deno$eval.js").unwrap();
@@ -140,41 +141,5 @@ fn main() -> anyhow::Result<()> {
         }
         Opt::Lsp => Ok(lsp::main()),
         Opt::Run { file, args } => run(file, args),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use itertools::Itertools;
-    use regex::Regex;
-
-    #[test]
-    fn test_deno_version() {
-        let deno_core_version = slurp::read_all_to_string("Cargo.toml")
-            .unwrap()
-            .parse::<toml::Value>()
-            .unwrap()
-            .get("dependencies")
-            .unwrap()
-            .get("deno_core")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
-        let (_, minor, patch) = Regex::new(r"0.(\d)(\d)")
-            .unwrap()
-            .captures(&deno_core_version)
-            .unwrap()
-            .iter()
-            .collect_tuple()
-            .unwrap();
-        // I don't know if this correspondence is documented, but that doesn't really matter here
-        // anyway since the point here is just to avoid accidentally updating the deno_core version
-        // in Cargo.toml without also updating DENO_VERSION here
-        assert_eq!(
-            DENO_VERSION,
-            format!("1.{}.{}", minor.unwrap().as_str(), patch.unwrap().as_str())
-        );
     }
 }
