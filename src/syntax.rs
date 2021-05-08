@@ -10,8 +10,9 @@ pub struct File {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Stmt {
-    Expr(Expr),
+pub struct Stmt {
+    pub range: Range,
+    pub expression: Expr,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -56,11 +57,11 @@ pub trait Node {
 fn make_children<T: Debug + Node>(
     text: &str,
     parent: &tree_sitter::Node,
+    field: &str,
 ) -> Result<Vec<T>, im::Vector<Diagnostic>> {
     let mut cursor = parent.walk();
     let (children, diagnosticses): (Vec<_>, Vec<_>) = parent
-        .children(&mut cursor)
-        .filter(|child| child.kind() != "comment" && child.kind() != ";") // TODO: make this good
+        .children_by_field_name(field, &mut cursor)
         .map(|child| T::make(text, &child))
         .partition(Result::is_ok);
     if diagnosticses.is_empty() {
@@ -78,7 +79,7 @@ impl Node for File {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
         Ok(File {
             range: node.range(),
-            body: make_children(text, node)?,
+            body: make_children(text, node, "body")?,
         })
     }
 
@@ -89,13 +90,15 @@ impl Node for File {
 
 impl Node for Stmt {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
-        Expr::make(text, node).map(Stmt::Expr)
+        let expression = node.child_by_field_name("expression").unwrap();
+        Ok(Stmt {
+            range: node.range(),
+            expression: Expr::make(text, &expression)?,
+        })
     }
 
     fn range(&self) -> Range {
-        match self {
-            Stmt::Expr(x) => x.range(),
-        }
+        self.range
     }
 }
 
@@ -170,24 +173,12 @@ impl Node for Id {
 
 impl Node for Call {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
-        let function = node.child_by_field_name("function").ok_or_else(|| {
-            im::vector![Diagnostic {
-                range: node.range(),
-                severity: DiagnosticSeverity::Error,
-                message: String::from("expected a function name"),
-            }]
-        })?;
-        let arguments = node.child_by_field_name("arguments").ok_or_else(|| {
-            im::vector![Diagnostic {
-                range: node.range(),
-                severity: DiagnosticSeverity::Error,
-                message: String::from("expected a list of arguments"),
-            }]
-        })?;
+        let function = node.child_by_field_name("function").unwrap();
+        let arguments = node.child_by_field_name("arguments").unwrap();
         Ok(Call {
             range: node.range(),
             function: Id::make(text, &function)?,
-            arguments: make_children(text, &arguments)?,
+            arguments: make_children(text, &arguments, "argument")?,
         })
     }
 

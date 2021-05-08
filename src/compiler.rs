@@ -67,11 +67,9 @@ fn compile_expression(expr: &syntax::Expr) -> Result<estree::Expression, im::Vec
 }
 
 fn compile_statement(stmt: &syntax::Stmt) -> Result<estree::Statement, im::Vector<Diagnostic>> {
-    match stmt {
-        syntax::Stmt::Expr(expr) => Ok(estree::Statement::Expression {
-            expression: Box::new(compile_expression(expr)?),
-        }),
-    }
+    Ok(estree::Statement::Expression {
+        expression: Box::new(compile_expression(&stmt.expression)?),
+    })
 }
 
 pub fn compile_file(file: &syntax::File) -> Result<estree::Program, im::Vector<Diagnostic>> {

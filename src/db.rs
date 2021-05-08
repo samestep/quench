@@ -595,17 +595,20 @@ mod tests {
         let tree = db.ast(uri).unwrap();
         let expected = syntax::File {
             range: ts_range(0, (0, 0), 47, (3, 0)),
-            body: vec![syntax::Stmt::Expr(syntax::Expr::Call(syntax::Call {
-                range: ts_range(23, (2, 0), 45, (2, 22)),
-                function: syntax::Id {
-                    range: ts_range(23, (2, 0), 28, (2, 5)),
-                    name: String::from("print"),
-                },
-                arguments: vec![syntax::Expr::Lit(syntax::Lit::Str(syntax::Str {
-                    range: ts_range(29, (2, 6), 44, (2, 21)),
-                    value: String::from("Hello, world!"),
-                }))],
-            }))],
+            body: vec![syntax::Stmt {
+                range: ts_range(23, (2, 0), 46, (2, 23)),
+                expression: syntax::Expr::Call(syntax::Call {
+                    range: ts_range(23, (2, 0), 45, (2, 22)),
+                    function: syntax::Id {
+                        range: ts_range(23, (2, 0), 28, (2, 5)),
+                        name: String::from("print"),
+                    },
+                    arguments: vec![syntax::Expr::Lit(syntax::Lit::Str(syntax::Str {
+                        range: ts_range(29, (2, 6), 44, (2, 21)),
+                        value: String::from("Hello, world!"),
+                    }))],
+                }),
+            }],
         };
         assert_eq!(tree.as_ref(), &expected);
     }

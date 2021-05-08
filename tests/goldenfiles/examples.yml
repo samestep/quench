@@ -12,6 +12,7 @@ complicated:
     undefined
     👻 ba # not a comment
     z 🙃
+    foo bar baz
 
 errors:
   compile: |
