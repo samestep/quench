@@ -69,9 +69,13 @@ jobs:
   rust:
     strategy:
       matrix:
+        os:
+          - ubuntu-20.04
+          - macos-10.15
+          - windows-2019
         rust:
           - 1.48.0
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
     env:
       RUSTFLAGS: -D warnings
     steps:
@@ -91,8 +95,10 @@ jobs:
         run: cargo install --locked --path .
       # partially covered by tests/cli.rs, but this checks the shebang
       - name: Check output of hello example
+        if: runner.os != 'Windows'
         run: diff <(examples/hello.qn) <(echo 'Hello, world!')
       - name: Upload quench for next job
+        if: matrix.os == 'ubuntu-20.04'
         uses: actions/upload-artifact@v2
         with:
           name: quench
