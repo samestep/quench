@@ -1,102 +1,197 @@
+use crate::diagnosis::Diagnostic;
+use lspower::lsp::DiagnosticSeverity;
+use std::fmt::Debug;
+use tree_sitter::Range;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct File {
-    pub body: Vec<Statement>,
+    pub range: Range,
+    pub body: Vec<Stmt>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Statement {
-    Expr(Expression),
+pub enum Stmt {
+    Expr(Expr),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Expression {
-    Lit(Literal),
-    Id(Identifier),
+pub enum Expr {
+    Lit(Lit),
+    Id(Id),
     Call(Call),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Literal {
-    Str(String),
+pub enum Lit {
+    Str(Str),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Identifier {
+pub struct Str {
+    pub range: Range,
+    pub value: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Id {
+    pub range: Range,
     pub name: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Call {
-    pub function: Identifier,
-    pub arguments: Vec<Expression>,
+    pub range: Range,
+    pub function: Id,
+    pub arguments: Vec<Expr>,
 }
 
 pub trait Node {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self>
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>>
     where
         Self: Sized;
+
+    fn range(&self) -> Range;
+}
+
+fn make_children<T: Debug + Node>(
+    text: &str,
+    parent: &tree_sitter::Node,
+) -> Result<Vec<T>, im::Vector<Diagnostic>> {
+    let mut cursor = parent.walk();
+    let (children, diagnosticses): (Vec<_>, Vec<_>) = parent
+        .children(&mut cursor)
+        .filter(|child| child.kind() != "comment" && child.kind() != ";") // TODO: make this good
+        .map(|child| T::make(text, &child))
+        .partition(Result::is_ok);
+    if diagnosticses.is_empty() {
+        Ok(children.into_iter().map(Result::unwrap).collect())
+    } else {
+        let mut flattened = im::vector![];
+        for diagnostics in diagnosticses.into_iter().map(Result::unwrap_err) {
+            flattened.append(diagnostics);
+        }
+        Err(flattened)
+    }
 }
 
 impl Node for File {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self> {
-        let mut cursor = node.walk();
-        Some(File {
-            body: node
-                .children(&mut cursor)
-                .filter_map(|child| Statement::make(text, &child))
-                .collect(),
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(File {
+            range: node.range(),
+            body: make_children(text, node)?,
         })
     }
-}
 
-impl Node for Statement {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self> {
-        Expression::make(text, node).map(Statement::Expr)
+    fn range(&self) -> Range {
+        self.range
     }
 }
 
-impl Node for Expression {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self> {
-        match node.kind() {
-            "string" => Literal::make(text, node).map(Expression::Lit),
-            "identifier" => Identifier::make(text, node).map(Expression::Id),
-            "call" => Call::make(text, node).map(Expression::Call),
-            _ => None,
+impl Node for Stmt {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Expr::make(text, node).map(Stmt::Expr)
+    }
+
+    fn range(&self) -> Range {
+        match self {
+            Stmt::Expr(x) => x.range(),
         }
     }
 }
 
-impl Node for Literal {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self> {
-        let value = node
-            .utf8_text(text.as_bytes())
-            .ok()?
-            .strip_prefix("\"")?
-            .strip_suffix("\"")?;
-        Some(Literal::Str(String::from(value)))
+impl Node for Expr {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        match node.kind() {
+            "string" => Lit::make(text, node).map(Expr::Lit),
+            "identifier" => Id::make(text, node).map(Expr::Id),
+            "call" => Call::make(text, node).map(Expr::Call),
+            kind => Err(im::vector![Diagnostic {
+                range: node.range(),
+                severity: DiagnosticSeverity::Error,
+                message: format!("did not expect a node of kind {}", kind),
+            }]),
+        }
+    }
+
+    fn range(&self) -> Range {
+        match self {
+            Expr::Lit(x) => x.range(),
+            Expr::Id(x) => x.range(),
+            Expr::Call(x) => x.range(),
+        }
     }
 }
 
-impl Node for Identifier {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self> {
-        Some(Identifier {
-            name: String::from(node.utf8_text(text.as_bytes()).ok()?),
+impl Node for Lit {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Str::make(text, node).map(Lit::Str)
+    }
+
+    fn range(&self) -> Range {
+        match self {
+            Lit::Str(x) => x.range(),
+        }
+    }
+}
+
+impl Node for Str {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        // we assume UTF-8, and our grammar guarantees that the string starts and ends with quotes
+        let value = node
+            .utf8_text(text.as_bytes())
+            .unwrap()
+            .strip_prefix("\"")
+            .unwrap()
+            .strip_suffix("\"")
+            .unwrap();
+        Ok(Str {
+            range: node.range(),
+            value: String::from(value),
         })
+    }
+
+    fn range(&self) -> Range {
+        self.range
+    }
+}
+
+impl Node for Id {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(Id {
+            range: node.range(),
+            name: String::from(node.utf8_text(text.as_bytes()).unwrap()), // we assume UTF-8
+        })
+    }
+
+    fn range(&self) -> Range {
+        self.range
     }
 }
 
 impl Node for Call {
-    fn make(text: &str, node: &tree_sitter::Node) -> Option<Self> {
-        Some(Call {
-            function: Identifier::make(text, &node.child_by_field_name("function")?)?,
-            arguments: {
-                let args_child = node.child_by_field_name("arguments")?;
-                let mut cursor = args_child.walk();
-                args_child
-                    .children(&mut cursor)
-                    .filter_map(|child| Expression::make(text, &child))
-                    .collect()
-            },
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        let function = node.child_by_field_name("function").ok_or_else(|| {
+            im::vector![Diagnostic {
+                range: node.range(),
+                severity: DiagnosticSeverity::Error,
+                message: String::from("expected a function name"),
+            }]
+        })?;
+        let arguments = node.child_by_field_name("arguments").ok_or_else(|| {
+            im::vector![Diagnostic {
+                range: node.range(),
+                severity: DiagnosticSeverity::Error,
+                message: String::from("expected a list of arguments"),
+            }]
+        })?;
+        Ok(Call {
+            range: node.range(),
+            function: Id::make(text, &function)?,
+            arguments: make_children(text, &arguments)?,
         })
+    }
+
+    fn range(&self) -> Range {
+        self.range
     }
 }

@@ -1,9 +1,27 @@
-use crate::{estree, syntax};
+use crate::{diagnosis::Diagnostic, estree, syntax};
 use either::Either;
+use lspower::lsp::DiagnosticSeverity;
+use std::fmt::Debug;
 
-fn compile_identifier(id: &syntax::Identifier) -> Option<estree::Expression> {
+fn gather<T, U: Debug>(
+    f: fn(T) -> Result<U, im::Vector<Diagnostic>>,
+    v: impl Iterator<Item = T>,
+) -> Result<Vec<U>, im::Vector<Diagnostic>> {
+    let (successes, diagnosticses): (Vec<_>, Vec<_>) = v.map(f).partition(Result::is_ok);
+    if diagnosticses.is_empty() {
+        Ok(successes.into_iter().map(Result::unwrap).collect())
+    } else {
+        let mut flattened = im::vector![];
+        for diagnostics in diagnosticses.into_iter().map(Result::unwrap_err) {
+            flattened.append(diagnostics);
+        }
+        Err(flattened)
+    }
+}
+
+fn compile_identifier(id: &syntax::Id) -> Result<estree::Expression, im::Vector<Diagnostic>> {
     match id.name.as_str() {
-        "print" => Some(estree::Expression::Member {
+        "print" => Ok(estree::Expression::Member {
             object: Box::new(estree::Expression::Identifier {
                 name: String::from("console"),
             }),
@@ -12,7 +30,7 @@ fn compile_identifier(id: &syntax::Identifier) -> Option<estree::Expression> {
             }),
             computed: false,
         }),
-        "args" => Some(estree::Expression::Member {
+        "args" => Ok(estree::Expression::Member {
             object: Box::new(estree::Expression::Identifier {
                 name: String::from("Deno"),
             }),
@@ -21,43 +39,45 @@ fn compile_identifier(id: &syntax::Identifier) -> Option<estree::Expression> {
             }),
             computed: false,
         }),
-        _ => None,
+        name => Err(im::vector![Diagnostic {
+            range: id.range,
+            severity: DiagnosticSeverity::Error,
+            message: format!("unexpected identifier {}", name),
+        }]),
     }
 }
 
-fn compile_expression(expr: &syntax::Expression) -> Option<estree::Expression> {
+fn compile_expression(expr: &syntax::Expr) -> Result<estree::Expression, im::Vector<Diagnostic>> {
     match expr {
-        syntax::Expression::Call(syntax::Call {
+        syntax::Expr::Call(syntax::Call {
             function,
             arguments,
-        }) => Some(estree::Expression::Call {
+            ..
+        }) => Ok(estree::Expression::Call {
             callee: Box::new(compile_identifier(function)?),
-            arguments: arguments.iter().filter_map(compile_expression).collect(),
+            arguments: gather(compile_expression, arguments.iter())?,
         }),
-        syntax::Expression::Id(id) => compile_identifier(id),
-        syntax::Expression::Lit(syntax::Literal::Str(value)) => Some(estree::Expression::Literal {
-            value: estree::Value::String(value.clone()),
-        }),
-    }
-}
-
-fn compile_statement(stmt: &syntax::Statement) -> Option<estree::Statement> {
-    match stmt {
-        syntax::Statement::Expr(expr) => {
-            let compiled = compile_expression(expr)?;
-            Some(estree::Statement::Expression {
-                expression: Box::new(compiled),
+        syntax::Expr::Id(id) => compile_identifier(id),
+        syntax::Expr::Lit(syntax::Lit::Str(syntax::Str { value, .. })) => {
+            Ok(estree::Expression::Literal {
+                value: estree::Value::String(value.clone()),
             })
         }
     }
 }
 
-pub fn compile_file(file: &syntax::File) -> Option<estree::Program> {
-    Some(estree::Program {
-        body: file
-            .body
-            .iter()
-            .filter_map(compile_statement)
+fn compile_statement(stmt: &syntax::Stmt) -> Result<estree::Statement, im::Vector<Diagnostic>> {
+    match stmt {
+        syntax::Stmt::Expr(expr) => Ok(estree::Statement::Expression {
+            expression: Box::new(compile_expression(expr)?),
+        }),
+    }
+}
+
+pub fn compile_file(file: &syntax::File) -> Result<estree::Program, im::Vector<Diagnostic>> {
+    Ok(estree::Program {
+        body: gather(compile_statement, file.body.iter())?
+            .into_iter()
             .map(Either::Right)
             .collect(),
     })
