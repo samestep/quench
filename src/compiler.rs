@@ -99,8 +99,19 @@ fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnosti
         qn::Lit::Str(qn::Str { val, .. }) => js::Expression::Literal {
             value: js::Value::String(val.clone()),
         },
-        qn::Lit::Sym(qn::Sym { name, .. }) => js::Expression::Literal {
-            value: js::Value::String(name.clone()), // TODO
+        qn::Lit::Sym(qn::Sym { name, .. }) => js::Expression::Call {
+            callee: Box::new(js::Expression::Member {
+                object: Box::new(js::Expression::Identifier {
+                    name: String::from("Symbol"),
+                }),
+                property: Box::new(js::Expression::Identifier {
+                    name: String::from("for"),
+                }),
+                computed: false,
+            }),
+            arguments: vec![js::Expression::Literal {
+                value: js::Value::String(name.clone()),
+            }],
         },
         qn::Lit::List(qn::List { items, .. }) => js::Expression::Array {
             elements: gather(compile_expression, items.iter())?
