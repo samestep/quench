@@ -1,0 +1,11 @@
+var my_null = null;
+var my_boolean = true;
+var my_other_boolean = false;
+var my_int = BigInt("42");
+var my_negative_int = BigInt("-3");
+var my_string = "hello";
+var my_symbol = "hi_there";
+var my_list = [BigInt("1"), "yes", BigInt("3"), false];
+var my_empty_list = [];
+var my_map = new Map([["foo", BigInt("42")], [["baz", null], "qux"], ["bar", [BigInt("-8"), new Map([]), BigInt("10"), []]]]);
+var my_empty_map = new Map([]);
