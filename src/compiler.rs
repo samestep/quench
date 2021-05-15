@@ -23,7 +23,7 @@ const MAIN: &str = "main";
 
 pub fn compile_file(file: &qn::File) -> Result<js::Program, im::Vector<Diagnostic>> {
     let mut body = vec![Either::Right(js::ModuleDeclaration::Import {
-        specifiers: vec![js::ImportSpecifier::ImportNamespace {
+        specifiers: vec![js::ImportSpecifier::ImportDefault {
             local: js::Identifier {
                 name: String::from("Immutable"),
             },
