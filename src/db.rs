@@ -646,7 +646,24 @@ mod tests {
             serde_json::to_value(compiled.as_ref()).unwrap(),
             serde_json::json!({
                 "type": "Program",
+                "sourceType": "module",
                 "body": [
+                    {
+                        "type": "ImportDeclaration",
+                        "specifiers": [
+                            {
+                                "type": "ImportNamespaceSpecifier",
+                                "local": {
+                                    "type": "Identifier",
+                                    "name": "Immutable"
+                                }
+                            }
+                        ],
+                        "source": {
+                            "type": "Literal",
+                            "value": "https://deno.land/x/immutable@4.0.0-rc.12-deno/mod.ts"
+                        }
+                    },
                     {
                         "type": "VariableDeclaration",
                         "declarations": [
@@ -693,7 +710,8 @@ mod tests {
                                                 }
                                             }
                                         ]
-                                    }
+                                    },
+                                    "generator": false
                                 }
                             }
                         ],
