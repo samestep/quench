@@ -653,7 +653,7 @@ mod tests {
                         "type": "ImportDeclaration",
                         "specifiers": [
                             {
-                                "type": "ImportNamespaceSpecifier",
+                                "type": "ImportDefaultSpecifier",
                                 "local": {
                                     "type": "Identifier",
                                     "name": "Immutable"
