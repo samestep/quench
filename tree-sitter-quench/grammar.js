@@ -26,6 +26,7 @@ module.exports = grammar({
       $.block,
       $.call,
       $.function,
+      $.field,
     ),
 
     parenthesized: $ => seq('(', field('expression', $._expression), ')'),
@@ -87,5 +88,10 @@ module.exports = grammar({
       '=>',
       field('body', $._expression),
     ),
+
+    field: $ => prec(2, seq(
+      field('map', $._expression),
+      field('key', $.symbol),
+    )),
   },
 });

@@ -93,43 +93,40 @@ fn compile_expression(expr: &qn::Expr) -> Result<js::Expression, im::Vector<Diag
             generator: false,
             expression: true,
         }),
+        qn::Expr::Field(qn::Field { map, key, .. }) => Ok(js::Expression::Call {
+            callee: Either::Left(Box::new(js::Expression::Member {
+                object: Either::Left(Box::new(compile_expression(map)?)),
+                property: Box::new(js::Expression::Identifier {
+                    name: String::from("get"),
+                }),
+                computed: false,
+            })),
+            arguments: vec![Either::Left(compile_symbol(key)?)],
+        }),
     }
 }
 
 fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnostic>> {
-    Ok(match lit {
-        qn::Lit::Null { .. } => js::Expression::Literal {
+    match lit {
+        qn::Lit::Null { .. } => Ok(js::Expression::Literal {
             value: js::Value::Null,
-        },
-        qn::Lit::Bool(qn::Bool { val, .. }) => js::Expression::Literal {
+        }),
+        qn::Lit::Bool(qn::Bool { val, .. }) => Ok(js::Expression::Literal {
             value: js::Value::Boolean(*val),
-        },
-        qn::Lit::Int(qn::Int { val, .. }) => js::Expression::Call {
+        }),
+        qn::Lit::Int(qn::Int { val, .. }) => Ok(js::Expression::Call {
             callee: Either::Left(Box::new(js::Expression::Identifier {
                 name: String::from("BigInt"),
             })),
             arguments: vec![Either::Left(js::Expression::Literal {
                 value: js::Value::String(val.to_string()),
             })],
-        },
-        qn::Lit::Str(qn::Str { val, .. }) => js::Expression::Literal {
+        }),
+        qn::Lit::Str(qn::Str { val, .. }) => Ok(js::Expression::Literal {
             value: js::Value::String(val.clone()),
-        },
-        qn::Lit::Sym(qn::Sym { name, .. }) => js::Expression::Call {
-            callee: Either::Left(Box::new(js::Expression::Member {
-                object: Either::Left(Box::new(js::Expression::Identifier {
-                    name: String::from("Symbol"),
-                })),
-                property: Box::new(js::Expression::Identifier {
-                    name: String::from("for"),
-                }),
-                computed: false,
-            })),
-            arguments: vec![Either::Left(js::Expression::Literal {
-                value: js::Value::String(name.clone()),
-            })],
-        },
-        qn::Lit::List(qn::List { items, .. }) => js::Expression::Call {
+        }),
+        qn::Lit::Sym(sym) => compile_symbol(sym),
+        qn::Lit::List(qn::List { items, .. }) => Ok(js::Expression::Call {
             callee: Either::Left(Box::new(js::Expression::Member {
                 object: Either::Left(Box::new(js::Expression::Identifier {
                     name: String::from("Immutable"),
@@ -146,8 +143,8 @@ fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnosti
                     .map(Some)
                     .collect(),
             })],
-        },
-        qn::Lit::Map(qn::Map { entries, .. }) => js::Expression::Call {
+        }),
+        qn::Lit::Map(qn::Map { entries, .. }) => Ok(js::Expression::Call {
             callee: Either::Left(Box::new(js::Expression::Member {
                 object: Either::Left(Box::new(js::Expression::Identifier {
                     name: String::from("Immutable"),
@@ -164,7 +161,24 @@ fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnosti
                     .map(Some)
                     .collect(),
             })],
-        },
+        }),
+    }
+}
+
+fn compile_symbol(sym: &qn::Sym) -> Result<js::Expression, im::Vector<Diagnostic>> {
+    Ok(js::Expression::Call {
+        callee: Either::Left(Box::new(js::Expression::Member {
+            object: Either::Left(Box::new(js::Expression::Identifier {
+                name: String::from("Symbol"),
+            })),
+            property: Box::new(js::Expression::Identifier {
+                name: String::from("for"),
+            }),
+            computed: false,
+        })),
+        arguments: vec![Either::Left(js::Expression::Literal {
+            value: js::Value::String(sym.name.clone()),
+        })],
     })
 }
 

@@ -3,7 +3,7 @@ my_null := null;
 my_boolean := true;
 my_other_boolean := false;
 
-my_int := 42;
+my_int := 4;
 my_negative_int := -3;
 
 my_string := "hello";
@@ -22,7 +22,17 @@ my_map := {
   "bar": [-8, {}, 10, []],
 };
 my_empty_map := {};
+my_nested_map := {.cat: {.dog: "bird"}};
 
 main := _ => {
+  print "my_int:";
   print my_int;
+  print "";
+
+  print "my_map.foo:";
+  print my_map.foo;
+  print "";
+
+  print "my_nested_map.cat.dog:";
+  print my_nested_map.cat.dog;
 };

@@ -20,6 +20,10 @@
             "named": true
           },
           {
+            "type": "field",
+            "named": true
+          },
+          {
             "type": "function",
             "named": true
           },
@@ -99,6 +103,10 @@
             "named": true
           },
           {
+            "type": "field",
+            "named": true
+          },
+          {
             "type": "function",
             "named": true
           },
@@ -150,6 +158,10 @@
           },
           {
             "type": "call",
+            "named": true
+          },
+          {
+            "type": "field",
             "named": true
           },
           {
@@ -223,6 +235,10 @@
             "named": true
           },
           {
+            "type": "field",
+            "named": true
+          },
+          {
             "type": "function",
             "named": true
           },
@@ -283,6 +299,10 @@
             "named": true
           },
           {
+            "type": "field",
+            "named": true
+          },
+          {
             "type": "function",
             "named": true
           },
@@ -334,6 +354,10 @@
           },
           {
             "type": "call",
+            "named": true
+          },
+          {
+            "type": "field",
             "named": true
           },
           {
@@ -397,6 +421,84 @@
             "named": true
           },
           {
+            "type": "field",
+            "named": true
+          },
+          {
+            "type": "function",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "integer",
+            "named": true
+          },
+          {
+            "type": "list",
+            "named": true
+          },
+          {
+            "type": "map",
+            "named": true
+          },
+          {
+            "type": "null",
+            "named": false
+          },
+          {
+            "type": "parenthesized",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          },
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "field",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "map": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "boolean",
+            "named": true
+          },
+          {
+            "type": "call",
+            "named": true
+          },
+          {
+            "type": "field",
+            "named": true
+          },
+          {
             "type": "function",
             "named": true
           },
@@ -454,6 +556,10 @@
           },
           {
             "type": "call",
+            "named": true
+          },
+          {
+            "type": "field",
             "named": true
           },
           {
@@ -524,6 +630,10 @@
           },
           {
             "type": "call",
+            "named": true
+          },
+          {
+            "type": "field",
             "named": true
           },
           {
@@ -600,6 +710,10 @@
           },
           {
             "type": "call",
+            "named": true
+          },
+          {
+            "type": "field",
             "named": true
           },
           {

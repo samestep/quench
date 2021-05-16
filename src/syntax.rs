@@ -36,6 +36,7 @@ pub enum Expr {
     Block(Block),
     Call(Call),
     Func(Func),
+    Field(Field),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -117,6 +118,13 @@ pub struct Func {
     pub range: Range,
     pub param: Id,
     pub body: Box<Expr>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Field {
+    pub range: Range,
+    pub map: Box<Expr>,
+    pub key: Sym,
 }
 
 pub trait Node {
@@ -217,6 +225,7 @@ impl Node for Expr {
             "block" => Block::make(text, node).map(Expr::Block),
             "call" => Call::make(text, node).map(Expr::Call),
             "function" => Func::make(text, node).map(Expr::Func),
+            "field" => Field::make(text, node).map(Expr::Field),
             _ => Lit::make(text, node).map(Expr::Lit),
         }
     }
@@ -228,6 +237,7 @@ impl Node for Expr {
             Expr::Block(x) => x.range(),
             Expr::Call(x) => x.range(),
             Expr::Func(x) => x.range(),
+            Expr::Field(x) => x.range(),
         }
     }
 }
@@ -439,6 +449,20 @@ impl Node for Func {
                 text,
                 &node.child_by_field_name("body").unwrap(),
             )?),
+        })
+    }
+
+    fn range(&self) -> Range {
+        self.range
+    }
+}
+
+impl Node for Field {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(Field {
+            range: node.range(),
+            map: Box::new(Expr::make(text, &node.child_by_field_name("map").unwrap())?),
+            key: Sym::make(text, &node.child_by_field_name("key").unwrap())?,
         })
     }
 

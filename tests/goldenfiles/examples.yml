@@ -29,7 +29,14 @@ complicated:
 data:
   status: 0
   out: |
+    my_int:
+    4n
+    
+    my_map.foo:
     42n
+    
+    my_nested_map.cat.dog:
+    bird
 
 errors:
   compile: |
