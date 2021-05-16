@@ -28,6 +28,8 @@ complicated:
 
 data:
   status: 0
+  out: |
+    42n
 
 errors:
   compile: |
@@ -39,3 +41,6 @@ hello:
   status: 0
   out: |
     Hello, world!
+
+pure:
+  status: 0

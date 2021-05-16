@@ -1,12 +1,18 @@
 import Immutable from "https://example.com/quench.js";
-var my_null = null;
-var my_boolean = true;
-var my_other_boolean = false;
-var my_int = BigInt("42");
-var my_negative_int = BigInt("-3");
-var my_string = "hello";
-var my_symbol = Symbol.for("hi_there");
-var my_list = Immutable.List([BigInt("1"), "yes", BigInt("3"), false]);
-var my_empty_list = Immutable.List([]);
-var my_map = Immutable.Map([[Symbol.for("foo"), BigInt("42")], [Immutable.List([Symbol.for("baz"), null]), Symbol.for("qux")], ["bar", Immutable.List([BigInt("-8"), Immutable.Map([]), BigInt("10"), Immutable.List([])])]]);
-var my_empty_map = Immutable.Map([]);
+const $my_null = null;
+const $my_boolean = true;
+const $my_other_boolean = false;
+const $my_int = BigInt("42");
+const $my_negative_int = BigInt("-3");
+const $my_string = "hello";
+const $my_symbol = Symbol.for("hi_there");
+const $my_list = Immutable.List([BigInt("1"), "yes", BigInt("3"), false]);
+const $my_empty_list = Immutable.List([]);
+const $my_map = Immutable.Map([[Symbol.for("foo"), BigInt("42")], [Immutable.List([Symbol.for("baz"), null]), Symbol.for("qux")], ["bar", Immutable.List([BigInt("-8"), Immutable.Map([]), BigInt("10"), Immutable.List([])])]]);
+const $my_empty_map = Immutable.Map([]);
+const $main = function ($_) {
+  return (function () {
+    console.log($my_int);
+  })();
+};
+$main();

@@ -1,6 +1,5 @@
 use crate::{diagnosis::Diagnostic, estree as js, opts::Opts, syntax as qn};
 use either::Either;
-use lspower::lsp::DiagnosticSeverity;
 use std::fmt::Debug;
 
 fn gather<T, U: Debug>(
@@ -21,6 +20,10 @@ fn gather<T, U: Debug>(
 
 const MAIN: &str = "main";
 
+fn mangle(name: &str) -> String {
+    format!("${}", name)
+}
+
 pub fn compile_file(file: &qn::File, opts: &Opts) -> Result<js::Program, im::Vector<Diagnostic>> {
     let mut body = vec![Either::Right(js::ModuleDeclaration::Import {
         specifiers: vec![js::ImportSpecifier::ImportDefault {
@@ -40,9 +43,7 @@ pub fn compile_file(file: &qn::File, opts: &Opts) -> Result<js::Program, im::Vec
     if file.decls.iter().any(|decl| decl.name.name == MAIN) {
         body.push(Either::Left(js::Statement::Expression {
             expression: Box::new(js::Expression::Call {
-                callee: Either::Left(Box::new(js::Expression::Identifier {
-                    name: String::from(MAIN),
-                })),
+                callee: Either::Left(Box::new(js::Expression::Identifier { name: mangle(MAIN) })),
                 arguments: vec![],
             }),
         }));
@@ -57,11 +58,11 @@ fn compile_declaration(decl: &qn::Decl) -> Result<js::Statement, im::Vector<Diag
     Ok(js::Statement::VariableDeclaration {
         declarations: vec![js::VariableDeclarator {
             id: Box::new(js::Pattern::Identifier {
-                name: decl.name.name.clone(),
+                name: mangle(&decl.name.name),
             }),
             init: Some(Box::new(compile_expression(&decl.val)?)),
         }],
-        kind: js::DeclarationKind::Var,
+        kind: js::DeclarationKind::Const,
     })
 }
 
@@ -83,7 +84,7 @@ fn compile_expression(expr: &qn::Expr) -> Result<js::Expression, im::Vector<Diag
         qn::Expr::Func(qn::Func { param, body, .. }) => Ok(js::Expression::Function {
             id: None,
             params: vec![js::Pattern::Identifier {
-                name: param.name.clone(),
+                name: mangle(&param.name),
             }],
             body: js::FunctionBody {
                 body: vec![Either::Right(js::Statement::Return {
@@ -196,11 +197,7 @@ fn compile_identifier(id: &qn::Id) -> Result<js::Expression, im::Vector<Diagnost
             }),
             computed: false,
         }),
-        name => Err(im::vector![Diagnostic {
-            range: id.range,
-            severity: DiagnosticSeverity::Error,
-            message: format!("unexpected identifier {}", name),
-        }]),
+        name => Ok(js::Expression::Identifier { name: mangle(name) }),
     }
 }
 

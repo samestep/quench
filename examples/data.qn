@@ -22,3 +22,7 @@ my_map := {
   "bar": [-8, {}, 10, []],
 };
 my_empty_map := {};
+
+main := _ => {
+  print my_int;
+};

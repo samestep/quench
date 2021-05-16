@@ -681,7 +681,7 @@ mod tests {
                                 "type": "VariableDeclarator",
                                 "id": {
                                     "type": "Identifier",
-                                    "name": "main"
+                                    "name": "$main"
                                 },
                                 "init": {
                                     "type": "FunctionExpression",
@@ -689,7 +689,7 @@ mod tests {
                                     "params": [
                                         {
                                             "type": "Identifier",
-                                            "name": "_"
+                                            "name": "$_"
                                         }
                                     ],
                                     "body": {
@@ -725,7 +725,7 @@ mod tests {
                                 }
                             }
                         ],
-                        "kind": "var"
+                        "kind": "const"
                     },
                     {
                         "type": "ExpressionStatement",
@@ -733,7 +733,7 @@ mod tests {
                             "type": "CallExpression",
                             "callee": {
                                 "type": "Identifier",
-                                "name": "main"
+                                "name": "$main"
                             },
                             "arguments": [],
                         }

@@ -1,5 +1,5 @@
 import Immutable from "https://example.com/quench.js";
-var main = function (_) {
+const $main = function ($_) {
   return (function () {
     console.log("foo");
     console.log(console.log("bar"));
@@ -7,4 +7,4 @@ var main = function (_) {
     console.log(Immutable.List(["foo", "bar", "baz"]));
   })();
 };
-main();
+$main();
