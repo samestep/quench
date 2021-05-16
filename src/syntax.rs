@@ -18,7 +18,13 @@ pub struct Decl {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Stmt {
+pub enum Stmt {
+    Decl(Decl),
+    ExprStmt(ExprStmt),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExprStmt {
     pub range: Range,
     pub expr: Expr,
 }
@@ -171,7 +177,28 @@ impl Node for Decl {
 
 impl Node for Stmt {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
-        Ok(Stmt {
+        match node.kind() {
+            "declaration" => Decl::make(text, node).map(Stmt::Decl),
+            "expression_statement" => ExprStmt::make(text, node).map(Stmt::ExprStmt),
+            kind => Err(im::vector![Diagnostic {
+                range: node.range(),
+                severity: DiagnosticSeverity::Error,
+                message: format!("did not expect a node of kind {}", kind),
+            }]),
+        }
+    }
+
+    fn range(&self) -> Range {
+        match self {
+            Stmt::Decl(x) => x.range(),
+            Stmt::ExprStmt(x) => x.range(),
+        }
+    }
+}
+
+impl Node for ExprStmt {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(ExprStmt {
             range: node.range(),
             expr: Expr::make(text, &node.child_by_field_name("expression").unwrap())?,
         })

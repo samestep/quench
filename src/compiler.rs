@@ -67,9 +67,12 @@ fn compile_declaration(decl: &qn::Decl) -> Result<js::Statement, im::Vector<Diag
 }
 
 fn compile_statement(stmt: &qn::Stmt) -> Result<js::Statement, im::Vector<Diagnostic>> {
-    Ok(js::Statement::Expression {
-        expression: Box::new(compile_expression(&stmt.expr)?),
-    })
+    match stmt {
+        qn::Stmt::Decl(decl) => compile_declaration(decl),
+        qn::Stmt::ExprStmt(qn::ExprStmt { expr, .. }) => Ok(js::Statement::Expression {
+            expression: Box::new(compile_expression(expr)?),
+        }),
+    }
 }
 
 fn compile_expression(expr: &qn::Expr) -> Result<js::Expression, im::Vector<Diagnostic>> {

@@ -44,3 +44,10 @@ hello:
 
 pure:
   status: 0
+
+scope:
+  status: 0
+  out: |
+    bar
+    baz
+    foo

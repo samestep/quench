@@ -15,7 +15,9 @@ module.exports = grammar({
       ';',
     ),
 
-    statement: $ => seq(field('expression', $._expression), ';'),
+    _statement: $ => choice($.declaration, $.expression_statement),
+
+    expression_statement: $ => seq(field('expression', $._expression), ';'),
 
     _expression: $ => choice(
       $.parenthesized,
@@ -70,7 +72,7 @@ module.exports = grammar({
 
     block: $ => seq(
       '{',
-      repeat1(field('statement', $.statement)),
+      repeat1(field('statement', $._statement)),
       optional(field('expression', $._expression)),
       '}',
     ),

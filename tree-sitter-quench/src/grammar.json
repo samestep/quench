@@ -45,7 +45,20 @@
         }
       ]
     },
-    "statement": {
+    "_statement": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "declaration"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "expression_statement"
+        }
+      ]
+    },
+    "expression_statement": {
       "type": "SEQ",
       "members": [
         {
@@ -311,7 +324,7 @@
             "name": "statement",
             "content": {
               "type": "SYMBOL",
-              "name": "statement"
+              "name": "_statement"
             }
           }
         },
