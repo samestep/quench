@@ -681,51 +681,44 @@ mod tests {
                                 "type": "VariableDeclarator",
                                 "id": {
                                     "type": "Identifier",
-                                    "name": "main"
+                                    "name": "$main"
                                 },
                                 "init": {
-                                    "type": "FunctionExpression",
+                                    "type": "ArrowFunctionExpression",
                                     "id": null,
                                     "params": [
                                         {
                                             "type": "Identifier",
-                                            "name": "_"
+                                            "name": "$_"
                                         }
                                     ],
                                     "body": {
-                                        "type": "BlockStatement",
-                                        "body": [
+                                        "type": "CallExpression",
+                                        "callee": {
+                                            "type": "MemberExpression",
+                                            "object": {
+                                                "type": "Identifier",
+                                                "name": "console"
+                                            },
+                                            "property": {
+                                                "type": "Identifier",
+                                                "name": "log"
+                                            },
+                                            "computed": false,
+                                        },
+                                        "arguments": [
                                             {
-                                                "type": "ReturnStatement",
-                                                "argument": {
-                                                    "type": "CallExpression",
-                                                    "callee": {
-                                                        "type": "MemberExpression",
-                                                        "object": {
-                                                            "type": "Identifier",
-                                                            "name": "console"
-                                                        },
-                                                        "property": {
-                                                            "type": "Identifier",
-                                                            "name": "log"
-                                                        },
-                                                        "computed": false,
-                                                    },
-                                                    "arguments": [
-                                                        {
-                                                            "type": "Literal",
-                                                            "value": "Hello, world!",
-                                                        }
-                                                    ],
-                                                }
+                                                "type": "Literal",
+                                                "value": "Hello, world!",
                                             }
-                                        ]
+                                        ],
                                     },
-                                    "generator": false
+                                    "generator": false,
+                                    "expression": true
                                 }
                             }
                         ],
-                        "kind": "var"
+                        "kind": "const"
                     },
                     {
                         "type": "ExpressionStatement",
@@ -733,7 +726,7 @@ mod tests {
                             "type": "CallExpression",
                             "callee": {
                                 "type": "Identifier",
-                                "name": "main"
+                                "name": "$main"
                             },
                             "arguments": [],
                         }

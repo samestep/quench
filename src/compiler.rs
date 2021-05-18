@@ -1,6 +1,5 @@
 use crate::{diagnosis::Diagnostic, estree as js, opts::Opts, syntax as qn};
 use either::Either;
-use lspower::lsp::DiagnosticSeverity;
 use std::fmt::Debug;
 
 fn gather<T, U: Debug>(
@@ -21,6 +20,10 @@ fn gather<T, U: Debug>(
 
 const MAIN: &str = "main";
 
+fn mangle(name: &str) -> String {
+    format!("${}", name)
+}
+
 pub fn compile_file(file: &qn::File, opts: &Opts) -> Result<js::Program, im::Vector<Diagnostic>> {
     let mut body = vec![Either::Right(js::ModuleDeclaration::Import {
         specifiers: vec![js::ImportSpecifier::ImportDefault {
@@ -40,9 +43,7 @@ pub fn compile_file(file: &qn::File, opts: &Opts) -> Result<js::Program, im::Vec
     if file.decls.iter().any(|decl| decl.name.name == MAIN) {
         body.push(Either::Left(js::Statement::Expression {
             expression: Box::new(js::Expression::Call {
-                callee: Either::Left(Box::new(js::Expression::Identifier {
-                    name: String::from(MAIN),
-                })),
+                callee: Either::Left(Box::new(js::Expression::Identifier { name: mangle(MAIN) })),
                 arguments: vec![],
             }),
         }));
@@ -57,18 +58,21 @@ fn compile_declaration(decl: &qn::Decl) -> Result<js::Statement, im::Vector<Diag
     Ok(js::Statement::VariableDeclaration {
         declarations: vec![js::VariableDeclarator {
             id: Box::new(js::Pattern::Identifier {
-                name: decl.name.name.clone(),
+                name: mangle(&decl.name.name),
             }),
             init: Some(Box::new(compile_expression(&decl.val)?)),
         }],
-        kind: js::DeclarationKind::Var,
+        kind: js::DeclarationKind::Const,
     })
 }
 
 fn compile_statement(stmt: &qn::Stmt) -> Result<js::Statement, im::Vector<Diagnostic>> {
-    Ok(js::Statement::Expression {
-        expression: Box::new(compile_expression(&stmt.expr)?),
-    })
+    match stmt {
+        qn::Stmt::Decl(decl) => compile_declaration(decl),
+        qn::Stmt::ExprStmt(qn::ExprStmt { expr, .. }) => Ok(js::Statement::Expression {
+            expression: Box::new(compile_expression(expr)?),
+        }),
+    }
 }
 
 fn compile_expression(expr: &qn::Expr) -> Result<js::Expression, im::Vector<Diagnostic>> {
@@ -80,55 +84,54 @@ fn compile_expression(expr: &qn::Expr) -> Result<js::Expression, im::Vector<Diag
             callee: Either::Left(Box::new(compile_expression(func)?)),
             arguments: vec![Either::Left(compile_expression(arg)?)],
         }),
-        qn::Expr::Func(qn::Func { param, body, .. }) => Ok(js::Expression::Function {
+        qn::Expr::Func(qn::Func { param, body, .. }) => Ok(js::Expression::ArrowFunction {
             id: None,
             params: vec![js::Pattern::Identifier {
-                name: param.name.clone(),
+                name: mangle(&param.name),
             }],
-            body: js::FunctionBody {
-                body: vec![Either::Right(js::Statement::Return {
-                    argument: Some(Box::new(compile_expression(body)?)),
-                })],
-            },
+            body: Either::Right(Box::new(compile_expression(body)?)),
             generator: false,
+            expression: true,
+        }),
+        qn::Expr::Index(qn::Index { coll, key, .. }) => Ok(js::Expression::Call {
+            callee: Either::Left(Box::new(js::Expression::Member {
+                object: Either::Left(Box::new(compile_expression(coll)?)),
+                property: Box::new(js::Expression::Identifier {
+                    name: String::from("get"),
+                }),
+                computed: false,
+            })),
+            arguments: vec![Either::Left(compile_expression(key)?)],
+        }),
+        qn::Expr::Field(qn::Field { map, key, .. }) => Ok(js::Expression::Call {
+            callee: Either::Left(Box::new(js::Expression::Member {
+                object: Either::Left(Box::new(compile_expression(map)?)),
+                property: Box::new(js::Expression::Identifier {
+                    name: String::from("get"),
+                }),
+                computed: false,
+            })),
+            arguments: vec![Either::Left(compile_symbol(key)?)],
         }),
     }
 }
 
 fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnostic>> {
-    Ok(match lit {
-        qn::Lit::Null { .. } => js::Expression::Literal {
+    match lit {
+        qn::Lit::Null { .. } => Ok(js::Expression::Literal {
             value: js::Value::Null,
-        },
-        qn::Lit::Bool(qn::Bool { val, .. }) => js::Expression::Literal {
+        }),
+        qn::Lit::Bool(qn::Bool { val, .. }) => Ok(js::Expression::Literal {
             value: js::Value::Boolean(*val),
-        },
-        qn::Lit::Int(qn::Int { val, .. }) => js::Expression::Call {
-            callee: Either::Left(Box::new(js::Expression::Identifier {
-                name: String::from("BigInt"),
-            })),
-            arguments: vec![Either::Left(js::Expression::Literal {
-                value: js::Value::String(val.to_string()),
-            })],
-        },
-        qn::Lit::Str(qn::Str { val, .. }) => js::Expression::Literal {
+        }),
+        qn::Lit::Int(qn::Int { val, .. }) => Ok(js::Expression::Literal {
+            value: js::Value::Number(f64::from(*val)),
+        }),
+        qn::Lit::Str(qn::Str { val, .. }) => Ok(js::Expression::Literal {
             value: js::Value::String(val.clone()),
-        },
-        qn::Lit::Sym(qn::Sym { name, .. }) => js::Expression::Call {
-            callee: Either::Left(Box::new(js::Expression::Member {
-                object: Either::Left(Box::new(js::Expression::Identifier {
-                    name: String::from("Symbol"),
-                })),
-                property: Box::new(js::Expression::Identifier {
-                    name: String::from("for"),
-                }),
-                computed: false,
-            })),
-            arguments: vec![Either::Left(js::Expression::Literal {
-                value: js::Value::String(name.clone()),
-            })],
-        },
-        qn::Lit::List(qn::List { items, .. }) => js::Expression::Call {
+        }),
+        qn::Lit::Sym(sym) => compile_symbol(sym),
+        qn::Lit::List(qn::List { items, .. }) => Ok(js::Expression::Call {
             callee: Either::Left(Box::new(js::Expression::Member {
                 object: Either::Left(Box::new(js::Expression::Identifier {
                     name: String::from("Immutable"),
@@ -145,8 +148,8 @@ fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnosti
                     .map(Some)
                     .collect(),
             })],
-        },
-        qn::Lit::Map(qn::Map { entries, .. }) => js::Expression::Call {
+        }),
+        qn::Lit::Map(qn::Map { entries, .. }) => Ok(js::Expression::Call {
             callee: Either::Left(Box::new(js::Expression::Member {
                 object: Either::Left(Box::new(js::Expression::Identifier {
                     name: String::from("Immutable"),
@@ -163,7 +166,24 @@ fn compile_literal(lit: &qn::Lit) -> Result<js::Expression, im::Vector<Diagnosti
                     .map(Some)
                     .collect(),
             })],
-        },
+        }),
+    }
+}
+
+fn compile_symbol(sym: &qn::Sym) -> Result<js::Expression, im::Vector<Diagnostic>> {
+    Ok(js::Expression::Call {
+        callee: Either::Left(Box::new(js::Expression::Member {
+            object: Either::Left(Box::new(js::Expression::Identifier {
+                name: String::from("Symbol"),
+            })),
+            property: Box::new(js::Expression::Identifier {
+                name: String::from("for"),
+            }),
+            computed: false,
+        })),
+        arguments: vec![Either::Left(js::Expression::Literal {
+            value: js::Value::String(sym.name.clone()),
+        })],
     })
 }
 
@@ -196,21 +216,17 @@ fn compile_identifier(id: &qn::Id) -> Result<js::Expression, im::Vector<Diagnost
             }),
             computed: false,
         }),
-        name => Err(im::vector![Diagnostic {
-            range: id.range,
-            severity: DiagnosticSeverity::Error,
-            message: format!("unexpected identifier {}", name),
-        }]),
+        name => Ok(js::Expression::Identifier { name: mangle(name) }),
     }
 }
 
 fn compile_block(block: &qn::Block) -> Result<js::Expression, im::Vector<Diagnostic>> {
     let qn::Block { stmts, expr, .. } = block;
     Ok(js::Expression::Call {
-        callee: Either::Left(Box::new(js::Expression::Function {
+        callee: Either::Left(Box::new(js::Expression::ArrowFunction {
             id: None,
             params: vec![],
-            body: js::FunctionBody {
+            body: Either::Left(js::FunctionBody {
                 body: {
                     let mut body = gather(compile_statement, stmts.iter())?;
                     if let Some(expr) = expr {
@@ -220,8 +236,9 @@ fn compile_block(block: &qn::Block) -> Result<js::Expression, im::Vector<Diagnos
                     }
                     body.into_iter().map(Either::Right).collect()
                 },
-            },
+            }),
             generator: false,
+            expression: false,
         })),
         arguments: vec![],
     })

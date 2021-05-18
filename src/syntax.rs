@@ -1,6 +1,5 @@
 use crate::diagnosis::Diagnostic;
 use lspower::lsp::DiagnosticSeverity;
-use num::BigInt;
 use std::{fmt::Debug, str::FromStr};
 use tree_sitter::Range;
 
@@ -18,7 +17,13 @@ pub struct Decl {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Stmt {
+pub enum Stmt {
+    Decl(Decl),
+    ExprStmt(ExprStmt),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExprStmt {
     pub range: Range,
     pub expr: Expr,
 }
@@ -30,6 +35,8 @@ pub enum Expr {
     Block(Block),
     Call(Call),
     Func(Func),
+    Index(Index),
+    Field(Field),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -52,7 +59,7 @@ pub struct Bool {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Int {
     pub range: Range,
-    pub val: BigInt,
+    pub val: i32,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -113,6 +120,20 @@ pub struct Func {
     pub body: Box<Expr>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Index {
+    pub range: Range,
+    pub coll: Box<Expr>,
+    pub key: Box<Expr>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Field {
+    pub range: Range,
+    pub map: Box<Expr>,
+    pub key: Sym,
+}
+
 pub trait Node {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>>
     where
@@ -171,7 +192,28 @@ impl Node for Decl {
 
 impl Node for Stmt {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
-        Ok(Stmt {
+        match node.kind() {
+            "declaration" => Decl::make(text, node).map(Stmt::Decl),
+            "expression_statement" => ExprStmt::make(text, node).map(Stmt::ExprStmt),
+            kind => Err(im::vector![Diagnostic {
+                range: node.range(),
+                severity: DiagnosticSeverity::Error,
+                message: format!("did not expect a node of kind {}", kind),
+            }]),
+        }
+    }
+
+    fn range(&self) -> Range {
+        match self {
+            Stmt::Decl(x) => x.range(),
+            Stmt::ExprStmt(x) => x.range(),
+        }
+    }
+}
+
+impl Node for ExprStmt {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(ExprStmt {
             range: node.range(),
             expr: Expr::make(text, &node.child_by_field_name("expression").unwrap())?,
         })
@@ -190,6 +232,8 @@ impl Node for Expr {
             "block" => Block::make(text, node).map(Expr::Block),
             "call" => Call::make(text, node).map(Expr::Call),
             "function" => Func::make(text, node).map(Expr::Func),
+            "index" => Index::make(text, node).map(Expr::Index),
+            "field" => Field::make(text, node).map(Expr::Field),
             _ => Lit::make(text, node).map(Expr::Lit),
         }
     }
@@ -201,6 +245,8 @@ impl Node for Expr {
             Expr::Block(x) => x.range(),
             Expr::Call(x) => x.range(),
             Expr::Func(x) => x.range(),
+            Expr::Index(x) => x.range(),
+            Expr::Field(x) => x.range(),
         }
     }
 }
@@ -259,13 +305,16 @@ impl Node for Int {
     fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
         Ok(Int {
             range: node.range(),
-            val: BigInt::from_str(node.utf8_text(text.as_bytes()).unwrap()).map_err(|err| {
-                im::vector![Diagnostic {
-                    range: node.range(),
-                    severity: DiagnosticSeverity::Error,
-                    message: err.to_string(),
-                }]
-            })?,
+            val: {
+                let s = node.utf8_text(text.as_bytes()).unwrap();
+                i32::from_str(s).map_err(|e| {
+                    im::vector![Diagnostic {
+                        range: node.range(),
+                        severity: DiagnosticSeverity::Error,
+                        message: format!("{}", e),
+                    }]
+                })?
+            },
         })
     }
 
@@ -412,6 +461,37 @@ impl Node for Func {
                 text,
                 &node.child_by_field_name("body").unwrap(),
             )?),
+        })
+    }
+
+    fn range(&self) -> Range {
+        self.range
+    }
+}
+
+impl Node for Index {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(Index {
+            range: node.range(),
+            coll: Box::new(Expr::make(
+                text,
+                &node.child_by_field_name("collection").unwrap(),
+            )?),
+            key: Box::new(Expr::make(text, &node.child_by_field_name("key").unwrap())?),
+        })
+    }
+
+    fn range(&self) -> Range {
+        self.range
+    }
+}
+
+impl Node for Field {
+    fn make(text: &str, node: &tree_sitter::Node) -> Result<Self, im::Vector<Diagnostic>> {
+        Ok(Field {
+            range: node.range(),
+            map: Box::new(Expr::make(text, &node.child_by_field_name("map").unwrap())?),
+            key: Sym::make(text, &node.child_by_field_name("key").unwrap())?,
         })
     }
 
