@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 0 1 * *'
+    - cron: "0 0 1 * *"
 
 jobs:
   jsdeps:
@@ -24,7 +24,7 @@ jobs:
         run: npm install
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
 
   tree-sitter:
     runs-on: ubuntu-20.04
@@ -44,7 +44,7 @@ jobs:
         run: npx tree-sitter generate
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
 
   package:
     runs-on: ubuntu-20.04
@@ -62,7 +62,7 @@ jobs:
         run: cargo package
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
 
   rust:
     strategy:
@@ -94,10 +94,10 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: quench
-          path: '~/.cargo/bin/quench'
+          path: "~/.cargo/bin/quench"
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
 
   vscode:
     needs: rust
@@ -132,4 +132,4 @@ jobs:
         run: xvfb-run -a npm test
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
