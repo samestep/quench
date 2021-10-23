@@ -12,10 +12,10 @@ jobs:
         include:
           - platform: linux
             label: ubuntu-20.04
-            extension: ''
+            extension: ""
           - platform: macos
             label: macos-10.15
-            extension: ''
+            extension: ""
           # - platform: windows
           #   label: windows-2019
           #   extension: '.exe'
@@ -52,7 +52,7 @@ jobs:
         run: cargo publish --token ${{ secrets.CARGO_TOKEN }}
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
 
   vscode-marketplace:
     runs-on: ubuntu-20.04
@@ -74,4 +74,4 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: Ensure empty Git status
         run: |
-          "$GITHUB_WORKSPACE/report_git_status.sh"
+          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
