@@ -8,125 +8,19 @@ on:
     - cron: "0 0 1 * *"
 
 jobs:
-  jsdeps:
+  ci:
     runs-on: ubuntu-20.04
-    defaults:
-      run:
-        working-directory: jsdeps
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 15
-      - name: Install Node modules
-        run: npm install
-      - name: Ensure empty Git status
-        run: |
-          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup
+      - run: yarn build
+      - run: yarn cli
+      - run: .github/report_git_status.sh
 
-  tree-sitter:
+  format:
     runs-on: ubuntu-20.04
-    defaults:
-      run:
-        working-directory: tree-sitter-quench
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 15
-      - name: Install dependencies
-        run: npm install
-      - name: Generate Tree-sitter parser
-        run: npx tree-sitter generate
-      - name: Ensure empty Git status
-        run: |
-          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
-
-  package:
-    runs-on: ubuntu-20.04
-    env:
-      RUSTFLAGS: -D warnings
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      # don't pull from cache, because cargo package doesn't seem to benefit
-      - name: Package
-        run: cargo package
-      - name: Ensure empty Git status
-        run: |
-          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
-
-  rust:
-    strategy:
-      matrix:
-        rust:
-          - 1.48.0
-    runs-on: ubuntu-20.04
-    env:
-      RUSTFLAGS: -D warnings
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-      - name: Set Rust toolchain
-        run: rustup default ${{ matrix.rust }}
-      - name: Get dependencies from cache
-        uses: Swatinem/rust-cache@v1
-      - name: Run tests
-        run: cargo test
-      - name: Install
-        run: cargo install --locked --path .
-      # partially covered by tests/cli.rs, but this checks the shebang
-      - name: Check output of hello example
-        run: diff <(examples/hello.qn) <(echo 'Hello, world!')
-      - name: Upload quench for next job
-        uses: actions/upload-artifact@v2
-        with:
-          name: quench
-          path: "~/.cargo/bin/quench"
-      - name: Ensure empty Git status
-        run: |
-          "$GITHUB_WORKSPACE/.github/report_git_status.sh"
-
-  vscode:
-    needs: rust
-    runs-on: ubuntu-20.04
-    defaults:
-      run:
-        working-directory: editors/code
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 15
-      - name: Install dependencies
-        run: npm install
-      - name: Package
-        run: npx vsce package
-      - name: Download quench from previous job
-        uses: actions/download-artifact@v2
-        with:
-          name: quench
-      - name: Make quench executable
-        # https://stackoverflow.com/a/53637605
-        run: |
-          VERSION=$(node -e "console.log(require('./package.json').version);")
-          DIR="$HOME/.quench/$VERSION/bin"
-          chmod +x $GITHUB_WORKSPACE/quench
-          mkdir -p "$DIR"
-          mv $GITHUB_WORKSPACE/quench "$DIR"
-      - name: Run tests
-        run: xvfb-run -a npm test
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup
+      - run: yarn format
+      - run: .github/report_git_status.sh

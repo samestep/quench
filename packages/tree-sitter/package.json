@@ -1,0 +1,15 @@
+{
+  "name": "@quench-lang/tree-sitter",
+  "version": "0.3.0",
+  "license": "MIT",
+  "main": "bindings/node",
+  "scripts": {
+    "build": "tree-sitter generate && tree-sitter build-wasm"
+  },
+  "dependencies": {
+    "nan": "^2"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.20"
+  }
+}
