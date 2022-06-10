@@ -1,6 +1,10 @@
-# Quench [![CI][]][ci link]
+# Quench [![CI](https://github.com/quench-lang/quench/actions/workflows/ci.yml/badge.svg)](https://github.com/quench-lang/quench/actions/workflows/ci.yml) [![license](https://img.shields.io/github/license/penrose/penrose)](LICENSE)
 
 A programming language.
+
+## Usage
+
+Try it in your browser, no installation required: https://quench-lang.org/
 
 ## Development
 
@@ -22,6 +26,4 @@ yarn serve
 
 This repository is released under the [MIT License](/LICENSE).
 
-[ci]: https://github.com/quench-lang/quench/actions/workflows/ci.yml/badge.svg
-[ci link]: https://github.com/quench-lang/quench/actions/workflows/ci.yml
 [yarn]: https://classic.yarnpkg.com/lang/en/docs/install/

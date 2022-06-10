@@ -15,6 +15,12 @@ jobs:
       - uses: ./.github/actions/setup
       - run: yarn build
       - run: yarn cli
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./packages/site/dist
+          cname: quench-lang.org
       - run: .github/report_git_status.sh
 
   format:
