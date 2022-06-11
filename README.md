@@ -11,6 +11,7 @@ Try it in your browser, no installation required: https://quench-lang.org/
 ### Prerequisites
 
 - [Yarn][]
+- [Docker][] or [Emscripten][] (for building Tree-sitter Wasm)
 
 ### Basics
 
@@ -18,6 +19,25 @@ Clone this repo, `cd` into it, then:
 
 ```sh
 yarn
+```
+
+### CLI
+
+```sh
+yarn build:tree-sitter
+yarn cli
+```
+
+### Site (development)
+
+```
+yarn build:tree-sitter
+yarn site
+```
+
+### Site (production)
+
+```
 yarn build
 yarn preview
 ```
@@ -26,4 +46,6 @@ yarn preview
 
 This repository is released under the [MIT License](/LICENSE).
 
+[docker]: https://docs.docker.com/get-docker/
+[emscripten]: https://emscripten.org/docs/getting_started/downloads.html
 [yarn]: https://classic.yarnpkg.com/lang/en/docs/install/

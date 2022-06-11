@@ -5,9 +5,11 @@
   ],
   "scripts": {
     "build": "lerna run --stream build",
+    "build:tree-sitter": "cd packages/tree-sitter/ && yarn build",
     "cli": "cd packages/cli/ && yarn start",
     "format": "prettier --write .",
-    "preview": "cd packages/site/ && yarn preview"
+    "preview": "cd packages/site/ && yarn preview",
+    "site": "cd packages/site/ && yarn dev"
   },
   "devDependencies": {
     "lerna": "^5",
