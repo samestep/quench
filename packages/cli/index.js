@@ -1,13 +1,13 @@
-import { QuenchParser } from "@quench-lang/core";
-import Quench from "@quench-lang/tree-sitter";
+import { Quench } from "@quench-lang/core";
+import language from "@quench-lang/tree-sitter";
 import * as fs from "fs/promises";
 import Parser from "tree-sitter";
+import * as url from "url";
 
 const parser = new Parser();
-parser.setLanguage(Quench);
-console.log(
-  new QuenchParser(
-    parser,
-    await fs.readFile(process.argv[2], "utf8")
-  ).astString()
-);
+parser.setLanguage(language);
+const quench = new Quench(parser);
+const [, , filename] = process.argv;
+const uri = url.pathToFileURL(filename);
+quench.setText(uri, await fs.readFile(filename, "utf8"));
+console.log(quench.getTreeString(uri));

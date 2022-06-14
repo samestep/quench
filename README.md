@@ -1,4 +1,4 @@
-# Quench [![CI](https://github.com/quench-lang/quench/actions/workflows/ci.yml/badge.svg)](https://github.com/quench-lang/quench/actions/workflows/ci.yml) [![license](https://img.shields.io/github/license/penrose/penrose)](LICENSE)
+# Quench [![CI](https://github.com/quench-lang/quench/actions/workflows/ci.yml/badge.svg)](https://github.com/quench-lang/quench/actions/workflows/ci.yml) [![license](https://img.shields.io/github/license/penrose/penrose)](/LICENSE)
 
 A programming language.
 
@@ -6,46 +6,16 @@ A programming language.
 
 Try it in your browser, no installation required: https://quench-lang.org/
 
-## Development
+## Editor integration
 
-### Prerequisites
+If you use VS Code, feel free to install the [extension][].
 
-- [Yarn][]
-- [Docker][] or [Emscripten][] (for building Tree-sitter Wasm)
+## Interested in contributing?
 
-### Basics
-
-Clone this repo, `cd` into it, then:
-
-```sh
-yarn
-```
-
-### CLI
-
-```sh
-yarn build:tree-sitter
-yarn cli packages/examples/hello.qn
-```
-
-### Site (development)
-
-```
-yarn build:tree-sitter
-yarn site
-```
-
-### Site (production)
-
-```
-yarn build
-yarn preview
-```
+Cool! See [`CONTRIBUTING.md`](/CONTRIBUTING.md).
 
 ## License
 
 This repository is released under the [MIT License](/LICENSE).
 
-[docker]: https://docs.docker.com/get-docker/
-[emscripten]: https://emscripten.org/docs/getting_started/downloads.html
-[yarn]: https://classic.yarnpkg.com/lang/en/docs/install/
+[extension]: https://marketplace.visualstudio.com/items?itemName=quench.quench

@@ -1,0 +1,69 @@
+{
+  "name": "quench",
+  "displayName": "Quench",
+  "version": "0.3.0",
+  "publisher": "quench",
+  "license": "MIT",
+  "repository": "quench-lang/quench",
+  "private": true,
+  "engines": {
+    "vscode": "^1.68.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:quench"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "quench",
+        "aliases": [
+          "Quench",
+          "quench"
+        ],
+        "extensions": [
+          ".qn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Quench configuration",
+      "properties": {
+        "quench.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "yarn build:client && yarn build:server",
+    "build:client": "esbuild ./extension.js --bundle --loader:.wasm=file --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "build:server": "node build.js && esbuild ./server.js --bundle --outfile=dist/server.js --format=cjs --platform=node",
+    "package": "vsce package --yarn",
+    "vscode:prepublish": "yarn build"
+  },
+  "dependencies": {
+    "@quench-lang/core": "0.3.0",
+    "@quench-lang/tree-sitter": "0.3.0",
+    "vscode-languageclient": "^8",
+    "vscode-languageserver": "^8",
+    "web-tree-sitter": "^0.20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.14",
+    "vsce": "^2"
+  }
+}

@@ -1,19 +1,22 @@
-export class QuenchParser {
-  constructor(parser, sourceCode) {
+export class Quench {
+  constructor(parser) {
     this.parser = parser;
-    this.parse(sourceCode);
+    this.trees = new Map();
   }
 
-  parse(sourceCode) {
-    this.tree = this.parser.parse(sourceCode);
+  setText(uri, text) {
+    this.trees.set(uri, this.parser.parse(text));
   }
 
-  applyEdit(edit, newSourceCode) {
-    this.tree.edit(edit);
-    this.tree = this.parser.parse(newSourceCode, this.tree);
+  close(uri) {
+    this.trees.delete(uri);
   }
 
-  astString() {
-    return this.tree.rootNode.toString();
+  getTreeRoot(uri) {
+    return this.trees.get(uri).rootNode;
+  }
+
+  getTreeString(uri) {
+    return this.getTreeRoot(uri).toString();
   }
 }
