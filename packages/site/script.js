@@ -1,5 +1,5 @@
 import { Moss } from "@moss-lang/core";
-import helloExample from "@moss-lang/examples/hello.ms?raw";
+import helloExample from "@moss-lang/examples/hello.moss?raw";
 import * as monaco from "monaco-editor";
 import language from "tree-sitter-moss/tree-sitter-moss.wasm?url";
 import Parser from "web-tree-sitter";

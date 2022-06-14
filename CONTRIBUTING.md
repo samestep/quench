@@ -20,7 +20,7 @@ yarn
 
 ```sh
 yarn build:tree-sitter
-yarn cli packages/examples/hello.ms
+yarn cli packages/examples/hello.moss
 ```
 
 ## Site
