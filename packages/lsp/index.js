@@ -1,4 +1,4 @@
-import { Quench } from "@quench-lang/core";
+import { Moss } from "@moss-lang/core";
 import {
   createConnection,
   ProposedFeatures,
@@ -10,10 +10,10 @@ import {
 export const startServer = (makeParser) => {
   const connection = createConnection(ProposedFeatures.all);
 
-  let quench;
+  let moss;
 
   connection.onInitialize(async () => {
-    quench = new Quench(await makeParser());
+    moss = new Moss(await makeParser());
 
     return {
       capabilities: {
@@ -37,17 +37,17 @@ export const startServer = (makeParser) => {
   ];
 
   connection.onDidOpenTextDocument(({ textDocument: { uri, text } }) => {
-    quench.setText(uri, text);
+    moss.setText(uri, text);
   });
 
   connection.onDidChangeTextDocument(
     ({ textDocument: { uri }, contentChanges: [{ text }] }) => {
-      quench.setText(uri, text);
+      moss.setText(uri, text);
     }
   );
 
   connection.onDidCloseTextDocument(({ textDocument: { uri } }) => {
-    quench.close(uri);
+    moss.close(uri);
   });
 
   const nodeTypeMap = {
@@ -97,7 +97,7 @@ export const startServer = (makeParser) => {
         }
       };
 
-      gatherTokens(quench.getTreeRoot(uri));
+      gatherTokens(moss.getTreeRoot(uri));
 
       const data = [];
       if (tokens.length > 0) {

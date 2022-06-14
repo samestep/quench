@@ -1,10 +1,10 @@
 {
-  "name": "quench",
-  "displayName": "Quench",
+  "name": "moss",
+  "displayName": "Moss",
   "version": "0.3.0",
-  "publisher": "quench",
+  "publisher": "moss-lang",
   "license": "MIT",
-  "repository": "quench-lang/quench",
+  "repository": "moss-lang/moss",
   "private": true,
   "engines": {
     "vscode": "^1.68.0"
@@ -13,28 +13,28 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "onLanguage:quench"
+    "onLanguage:moss"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "quench",
+        "id": "moss",
         "aliases": [
-          "Quench",
-          "quench"
+          "Moss",
+          "moss"
         ],
         "extensions": [
-          ".qn"
+          ".ms"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "configuration": {
       "type": "object",
-      "title": "Quench configuration",
+      "title": "Moss configuration",
       "properties": {
-        "quench.trace.server": {
+        "moss.trace.server": {
           "scope": "window",
           "type": "string",
           "enum": [
@@ -56,8 +56,8 @@
     "vscode:prepublish": "yarn build"
   },
   "dependencies": {
-    "@quench-lang/lsp": "0.3.0",
-    "@quench-lang/tree-sitter": "0.3.0",
+    "@moss-lang/lsp": "0.3.0",
+    "tree-sitter-moss": "0.3.0",
     "vscode-languageclient": "^8",
     "web-tree-sitter": "^0.20"
   },

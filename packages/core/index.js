@@ -1,4 +1,4 @@
-export class Quench {
+export class Moss {
   constructor(parser) {
     this.parser = parser;
     this.trees = new Map();

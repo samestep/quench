@@ -1,5 +1,5 @@
 {
-  "name": "@quench-lang/site",
+  "name": "@moss-lang/site",
   "version": "0.3.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@quench-lang/core": "0.3.0",
-    "@quench-lang/examples": "0.3.0",
-    "@quench-lang/tree-sitter": "0.3.0",
+    "@moss-lang/core": "0.3.0",
+    "@moss-lang/examples": "0.3.0",
     "monaco-editor": "0.33",
+    "tree-sitter-moss": "0.3.0",
     "web-tree-sitter": "^0.20"
   },
   "devDependencies": {

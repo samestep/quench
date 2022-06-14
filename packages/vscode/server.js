@@ -1,4 +1,4 @@
-import * as lsp from "@quench-lang/lsp";
+import * as lsp from "@moss-lang/lsp";
 import Parser from "web-tree-sitter";
 
 lsp.startServer(async () => {

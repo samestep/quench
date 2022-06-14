@@ -1,7 +1,7 @@
-import { Quench } from "@quench-lang/core";
-import helloExample from "@quench-lang/examples/hello.qn?raw";
-import language from "@quench-lang/tree-sitter/tree-sitter-quench.wasm?url";
+import { Moss } from "@moss-lang/core";
+import helloExample from "@moss-lang/examples/hello.ms?raw";
 import * as monaco from "monaco-editor";
+import language from "tree-sitter-moss/tree-sitter-moss.wasm?url";
 import Parser from "web-tree-sitter";
 
 const options = { automaticLayout: true, theme: "vs-dark", wordWrap: "on" };
@@ -19,19 +19,19 @@ const ast = monaco.editor.create(document.getElementById("ast"), {
   await Parser.init();
   const parser = new Parser();
   parser.setLanguage(await Parser.Language.load(language));
-  const quench = new Quench(parser);
+  const moss = new Moss(parser);
 
   const uri = "";
-  quench.setText(uri, code.getValue());
+  moss.setText(uri, code.getValue());
 
   const setAst = (preface) => {
-    ast.setValue(`${preface}\n\n${quench.getTreeString(uri)}`);
+    ast.setValue(`${preface}\n\n${moss.getTreeString(uri)}`);
   };
 
   setAst("initial text");
   code.onDidChangeModelContent(({ changes }) => {
     const t0 = performance.now();
-    quench.setText(uri, code.getValue());
+    moss.setText(uri, code.getValue());
     const t1 = performance.now();
 
     setAst(

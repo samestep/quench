@@ -1,11 +1,11 @@
 {
-  "name": "@quench-lang/cli",
+  "name": "@moss-lang/cli",
   "version": "0.3.0",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@quench-lang/core": "0.3.0",
-    "@quench-lang/tree-sitter": "0.3.0",
-    "tree-sitter": "^0.20"
+    "@moss-lang/core": "0.3.0",
+    "tree-sitter": "^0.20",
+    "tree-sitter-moss": "0.3.0"
   }
 }

@@ -1,4 +1,4 @@
-# Contributing to Quench
+# Contributing to Moss
 
 This project is still in its very early stages, but feel free to open issues
 and/or pull requests regardless. :)
@@ -20,7 +20,7 @@ yarn
 
 ```sh
 yarn build:tree-sitter
-yarn cli packages/examples/hello.qn
+yarn cli packages/examples/hello.ms
 ```
 
 ## Site

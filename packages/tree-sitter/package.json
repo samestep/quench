@@ -1,5 +1,5 @@
 {
-  "name": "@quench-lang/tree-sitter",
+  "name": "tree-sitter-moss",
   "version": "0.3.0",
   "license": "MIT",
   "main": "bindings/node",
