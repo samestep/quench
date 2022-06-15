@@ -35,14 +35,16 @@ yarn site
 ### Production
 
 ```
-yarn build
+yarn build:tree-sitter
+yarn build:site
 yarn preview
 ```
 
 ## VS Code extension
 
 ```sh
-yarn build
+yarn build:tree-sitter
+yarn build:vscode
 ```
 
 Then, from VS Code, press F5 to open a new window with the extension loaded.

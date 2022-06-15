@@ -4,15 +4,16 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "lerna run --stream build",
-    "build:tree-sitter": "cd packages/tree-sitter/ && yarn build",
+    "build": "yarn build:tree-sitter && yarn build:vscode && yarn build:site",
+    "build:site": "yarn workspace @moss-lang/site build",
+    "build:tree-sitter": "yarn workspace tree-sitter-moss build",
+    "build:vscode": "yarn workspace moss build",
     "cli": "node packages/cli/index.js",
     "format": "prettier --write .",
-    "preview": "cd packages/site/ && yarn preview",
-    "site": "cd packages/site/ && yarn dev"
+    "preview": "yarn workspace @moss-lang/site preview",
+    "site": "yarn workspace @moss-lang/site dev"
   },
   "devDependencies": {
-    "lerna": "^5",
     "prettier": "^2"
   }
 }
