@@ -12,13 +12,12 @@
   "dependencies": {
     "@moss-lang/examples": "0.3.0",
     "@moss-lang/lsp": "0.3.0",
-    "monaco-editor": "^0.33",
+    "monaco-editor-core": "^0.33",
     "monaco-languageclient": "^1",
     "tree-sitter-moss": "0.3.0",
     "web-tree-sitter": "^0.20"
   },
   "devDependencies": {
-    "vite": "^2",
-    "vite-plugin-monaco-editor": "^1"
+    "vite": "^2"
   }
 }

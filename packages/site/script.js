@@ -1,6 +1,6 @@
 import helloExample from "@moss-lang/examples/hello.moss?raw";
 import * as lsp from "@moss-lang/lsp";
-import * as monaco from "monaco-editor";
+import * as monaco from "monaco-editor-core";
 import {
   AbstractMessageReader,
   AbstractMessageWriter,
