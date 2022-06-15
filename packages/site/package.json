@@ -10,9 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@moss-lang/core": "0.3.0",
     "@moss-lang/examples": "0.3.0",
-    "monaco-editor": "0.33",
+    "@moss-lang/lsp": "0.3.0",
+    "monaco-editor": "^0.33",
+    "monaco-languageclient": "^1",
     "tree-sitter-moss": "0.3.0",
     "web-tree-sitter": "^0.20"
   },

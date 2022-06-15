@@ -1,12 +1,9 @@
 html {
-  height: 100%;
+  background: black;
 }
 
-body {
-  height: 100%;
-  margin: 0;
-}
-
-.editor {
-  height: 50%;
+/* https://github.com/TypeFox/monaco-languageclient/blob/v1.0.1/packages/examples/client/index.html */
+#container {
+  width: 800px;
+  height: 600px;
 }

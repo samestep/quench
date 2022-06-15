@@ -7,8 +7,8 @@ import {
   SemanticTokenTypes,
 } from "vscode-languageserver";
 
-export const startServer = (makeParser) => {
-  const connection = createConnection(ProposedFeatures.all);
+export const startServer = ({ reader, writer, makeParser }) => {
+  const connection = createConnection(ProposedFeatures.all, reader, writer);
 
   let moss;
 
