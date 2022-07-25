@@ -1,5 +1,15 @@
 import * as astring from "astring";
 
+const gatherDiagnostics = (diags, node) => {
+  if (node.type === "ERROR" || node.isMissing()) {
+    diags.push(node);
+  } else {
+    for (const child of node.children) {
+      gatherDiagnostics(diags, child);
+    }
+  }
+};
+
 const mangle = (name) => `$${name}`;
 
 const compileIdentifier = (id) => {
@@ -67,6 +77,12 @@ class Moss {
 
   getTreeRoot(uri) {
     return this.trees.get(uri).rootNode;
+  }
+
+  getDiagnostics(uri) {
+    const diags = [];
+    gatherDiagnostics(diags, this.getTreeRoot(uri));
+    return diags;
   }
 
   // compilation
@@ -269,6 +285,11 @@ class Moss {
   }
 
   compile(uri) {
+    const diags = this.getDiagnostics(uri);
+    if (diags.length > 0) {
+      return diags;
+    }
+
     const decls = this.childrenForFieldName(
       this.getTreeRoot(uri),
       "declaration"

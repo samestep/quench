@@ -100,5 +100,6 @@ const mossPromise = new Promise((resolve) => {
 });
 
 document.getElementById("compile").onclick = async () => {
-  target.setValue((await mossPromise).compile(uri));
+  const compiled = (await mossPromise).compile(uri);
+  target.setValue(typeof compiled === "string" ? compiled : "");
 };

@@ -10,4 +10,10 @@ const moss = nodeMoss(parser);
 const [, , filename] = process.argv;
 const uri = url.pathToFileURL(filename);
 moss.setText(uri, await fs.readFile(filename, "utf8"));
-console.log(moss.compile(uri));
+const compiled = moss.compile(uri);
+if (Array.isArray(compiled)) {
+  console.error(compiled);
+  process.exit(1);
+} else {
+  console.log(compiled);
+}
