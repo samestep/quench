@@ -100,5 +100,5 @@ const mossPromise = new Promise((resolve) => {
 });
 
 document.getElementById("compile").onclick = async () => {
-  target.setValue((await mossPromise).compile("inmemory://model.moss"));
+  target.setValue((await mossPromise).compile(uri));
 };
