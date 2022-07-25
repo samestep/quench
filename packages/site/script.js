@@ -16,13 +16,11 @@ monaco.languages.register({ id: "moss", extensions: [".moss"] });
 
 const defaultOptions = { theme: "vs-dark" };
 
-const source = monaco.editor.create(document.getElementById("source"), {
+const uri = "inmemory://model.moss";
+
+monaco.editor.create(document.getElementById("source"), {
   ...defaultOptions,
-  model: monaco.editor.createModel(
-    helloExample,
-    "moss",
-    monaco.Uri.parse("inmemory://model.moss")
-  ),
+  model: monaco.editor.createModel(helloExample, "moss", monaco.Uri.parse(uri)),
   "semanticHighlighting.enabled": true,
 });
 
@@ -102,7 +100,5 @@ const mossPromise = new Promise((resolve) => {
 });
 
 document.getElementById("compile").onclick = async () => {
-  const moss = await mossPromise;
-  moss.setText("", source.getValue());
-  target.setValue(moss.compile(""));
+  target.setValue((await mossPromise).compile("inmemory://model.moss"));
 };
