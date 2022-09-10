@@ -19,7 +19,6 @@ yarn
 ## CLI
 
 ```sh
-yarn build --filter=cli
 ./run.sh packages/examples/hello.moss
 ```
 
